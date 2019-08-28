@@ -133,7 +133,7 @@ subroutine init_oda(Time, G, GV, CS)
   integer :: is,ie,js,je,isd,ied,jsd,jed
   integer :: stdout_unit
   character(len=32) :: assim_method
-  integer :: npes_pm, ens_info(6), ni, nj
+  integer :: npes_pm, ens_info(7), ni, nj
   character(len=128) :: mesg
   character(len=32) :: fldnam
   character(len=30) :: coord_mode
