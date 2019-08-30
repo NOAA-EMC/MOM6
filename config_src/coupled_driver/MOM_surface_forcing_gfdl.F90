@@ -189,6 +189,9 @@ type, public :: ice_ocean_boundary_type
                                                             !! ice-shelves, expressed as a coefficient
                                                             !! for divergence damping, as determined
                                                             !! outside of the ocean model [m3 s-1]
+  real, pointer, dimension(:,:) :: ustk0         =>NULL() !<
+  real, pointer, dimension(:,:) :: vstk0         =>NULL() !<
+
   integer :: xtype                    !< The type of the exchange - REGRID, REDIST or DIRECT
   type(coupler_2d_bc_type) :: fluxes  !< A structure that may contain an array of named fields
                                       !! used for passive tracer fluxes.
@@ -275,7 +278,7 @@ subroutine convert_IOB_to_fluxes(IOB, fluxes, index_bounds, Time, valid_time, G,
   ! flux type has been used.
   if (fluxes%dt_buoy_accum < 0) then
     call allocate_forcing_type(G, fluxes, water=.true., heat=.true., &
-                               ustar=.true., press=.true.)
+                               ustar=.true., press=.true. )
 
     call safe_alloc_ptr(fluxes%sw_vis_dir,isd,ied,jsd,jed)
     call safe_alloc_ptr(fluxes%sw_vis_dif,isd,ied,jsd,jed)
@@ -710,6 +713,9 @@ subroutine convert_IOB_to_forces(IOB, forces, index_bounds, Time, G, US, CS, dt_
        (associated(IOB%mass_berg) .and. (.not. associated(forces%mass_berg))) ) &
     call allocate_mech_forcing(G, forces, iceberg=.true.)
 
+  if ( associated(IOB%ustk0) ) &
+    call allocate_mech_forcing(G, forces, waves=.true.)
+
   if (associated(IOB%ice_rigidity)) then
     rigidity_at_h(:,:) = 0.0
     call safe_alloc_ptr(forces%rigidity_ice_u,IsdB,IedB,jsd,jed)
@@ -769,6 +775,11 @@ subroutine convert_IOB_to_forces(IOB, forces, index_bounds, Time, G, US, CS, dt_
       forces%ustar(i,j) = wt1*forces%ustar(i,j) + wt2*ustar_tmp(i,j)
     enddo ; enddo
   endif
+  do j=js,je; do i=is,ie
+     forces%ustk0(i,j) = IOB%ustk0(i-I0,j-J0) ! How to be careful here that the domains are right?
+     forces%vstk0(i,j) = IOB%vstk0(i-I0,j-J0)
+  enddo ; enddo
+  call pass_vector(forces%ustk0,forces%vstk0, G%domain )
 
   ! Find the net mass source in the input forcing without other adjustments.
   if (CS%approx_net_mass_src .and. associated(forces%net_mass_src)) then

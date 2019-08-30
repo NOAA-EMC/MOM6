@@ -230,6 +230,10 @@ type, public :: mech_forcing
                                 !! ice needs to be accumulated, and the rigidity explicitly
                                 !! reset to zero at the driver level when appropriate.
 
+  real, pointer, dimension(:,:) :: &
+       Ustk0 => NULL(), &
+       Vstk0 => NULL()
+
   logical :: initialized = .false. !< This indicates whether the appropriate arrays have been initialized.
 end type mech_forcing
 
@@ -2875,7 +2879,7 @@ subroutine allocate_forcing_type(G, fluxes, water, heat, ustar, press, shelf, ic
 end subroutine allocate_forcing_type
 
 !> Conditionally allocate fields within the mechanical forcing type
-subroutine allocate_mech_forcing(G, forces, stress, ustar, shelf, press, iceberg)
+subroutine allocate_mech_forcing(G, forces, stress, ustar, shelf, press, iceberg, waves)
   type(ocean_grid_type), intent(in) :: G       !< Ocean grid structure
   type(mech_forcing), intent(inout) :: forces  !< Forcing fields structure
 
@@ -2884,6 +2888,7 @@ subroutine allocate_mech_forcing(G, forces, stress, ustar, shelf, press, iceberg
   logical, optional,     intent(in) :: shelf   !< If present and true, allocate forces for ice-shelf
   logical, optional,     intent(in) :: press   !< If present and true, allocate p_surf and related fields
   logical, optional,     intent(in) :: iceberg !< If present and true, allocate forces for icebergs
+  logical, optional,     intent(in) :: waves   !< If present and true, allocate wave fields
 
   ! Local variables
   integer :: isd, ied, jsd, jed, IsdB, IedB, JsdB, JedB
@@ -2909,6 +2914,10 @@ subroutine allocate_mech_forcing(G, forces, stress, ustar, shelf, press, iceberg
   !These fields should only on allocated when iceberg area is being passed through the coupler.
   call myAlloc(forces%area_berg,isd,ied,jsd,jed, iceberg)
   call myAlloc(forces%mass_berg,isd,ied,jsd,jed, iceberg)
+
+  !These fileds should only be allocated when waves are being passed through the coupler
+  call myAlloc(forces%ustk0,isd,ied,jsd,jed, waves)
+  call myAlloc(forces%vstk0,isd,ied,jsd,jed, waves)
 
 end subroutine allocate_mech_forcing
 

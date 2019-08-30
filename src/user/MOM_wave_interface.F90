@@ -9,6 +9,7 @@ use MOM_domains,       only : pass_var, pass_vector, AGRID
 use MOM_domains,       only : To_South, To_West, To_All
 use MOM_error_handler, only : MOM_error, FATAL, WARNING
 use MOM_file_parser,   only : get_param, log_version, param_file_type
+use MOM_forcing_type,  only : mech_forcing
 use MOM_grid,          only : ocean_grid_type
 use MOM_safe_alloc,    only : safe_alloc_ptr
 use MOM_time_manager,  only : time_type, operator(+), operator(/)
@@ -300,6 +301,15 @@ subroutine MOM_wave_interface_init(time, G, GV, US, param_file, CS, diag )
            "Filename of surface Stokes drift input band data.", default="StkSpec.nc")
     case (COUPLER_STRING)! Reserved for coupling
       DataSource = Coupler
+      ! This is just to make something work, but it needs to be read from the wavemodel.
+      NumBands = 1
+      allocate( CS%WaveNum_Cen(NumBands) )
+      allocate( CS%STKx0(G%isdB:G%iedB,G%jsd:G%jed,NumBands))
+      allocate( CS%STKy0(G%isdB:G%iedB,G%jsd:G%jed,NumBands))
+      CS%WaveNum_Cen(1) = 6.28/10
+      CS%STKx0(:,:,:) = 0.0
+      CS%STKy0(:,:,:) = 0.0
+      partitionmode = 0
     case (INPUT_STRING)! A method to input the Stokes band (globally uniform)
       DataSource = Input
       call get_param(param_file,mdl,"SURFBAND_NB",NumBands,                 &
@@ -433,13 +443,14 @@ subroutine MOM_wave_interface_init_lite(param_file)
 end subroutine MOM_wave_interface_init_lite
 
 !> Subroutine that handles updating of surface wave/Stokes drift related properties
-subroutine Update_Surface_Waves(G, GV, US, Day, dt, CS)
+subroutine Update_Surface_Waves(G, GV, US, Day, dt, CS, forces)
   type(wave_parameters_CS), pointer    :: CS  !< Wave parameter Control structure
   type(ocean_grid_type), intent(inout) :: G   !< Grid structure
   type(verticalGrid_type), intent(in)  :: GV  !< Vertical grid structure
   type(unit_scale_type),   intent(in)  :: US   !< A dimensional unit scaling type
   type(time_type),         intent(in)  :: Day !< Current model time
   type(time_type),         intent(in)  :: dt  !< Timestep as a time-type
+  type(mech_forcing),      intent(in)  :: forces !< MOM_forcing_type
   ! Local variables
   integer :: ii, jj, kk, b
   type(time_type) :: Day_Center
@@ -453,7 +464,20 @@ subroutine Update_Surface_Waves(G, GV, US, Day, dt, CS)
     if (DataSource==DATAOVR) then
       call Surface_Bands_by_data_override(day_center, G, GV, US, CS)
     elseif (DataSource==Coupler) then
-      ! Reserve for coupler hooks
+       !Interpolate from a grid to c grid
+       do b=1,NumBands
+        do II=G%iscB,G%iecB
+          do jj=G%jsc,G%jec
+            CS%STKx0(II,jj,b) = 0.5*(forces%UStk0(ii,jj)+forces%UStk0(ii+1,jj))
+          enddo
+        enddo
+        do ii=G%isc,G%iec
+          do JJ=G%jscB, G%jecB
+            CS%STKY0(ii,JJ,b) = 0.5*(forces%VStk0(ii,jj)+forces%VStk0(ii,jj+1))
+          enddo
+        enddo
+        call pass_vector(CS%STKx0(:,:,b),CS%STKy0(:,:,b), G%Domain)
+      enddo
     elseif (DataSource==Input) then
       do b=1,NumBands
         do II=G%isdB,G%iedB
@@ -485,13 +509,14 @@ subroutine Update_Stokes_Drift(G, GV, US, CS, h, ustar)
   real, dimension(SZI_(G),SZJ_(G)), &
        intent(in)    :: ustar !< Wind friction velocity [Z T-1 ~> m s-1].
   ! Local Variables
-  real    :: Top, MidPoint, Bottom, one_cm
+  real    :: Top, MidPoint, Bottom, one_cm, level_thick, min_level_thick_avg
   real    :: DecayScale
   real    :: CMN_FAC, WN, UStokes
   real    :: La
   integer :: ii, jj, kk, b, iim1, jjm1
 
   one_cm = 0.01*US%m_to_Z
+  min_level_thick_avg = 1.e-3*US%m_to_Z
 
   ! 1. If Test Profile Option is chosen
   !    Computing mid-point value from surface value and decay wavelength
@@ -552,26 +577,40 @@ subroutine Update_Stokes_Drift(G, GV, US, CS, h, ustar)
         do kk = 1,G%ke
           Top = Bottom
           IIm1 = max(II-1,1)
-          MidPoint = Bottom - GV%H_to_Z*0.25*(h(II,jj,kk)+h(IIm1,jj,kk))
-          Bottom = Bottom - GV%H_to_Z*0.5*(h(II,jj,kk)+h(IIm1,jj,kk))
-          do b = 1,NumBands
-            if (PartitionMode==0) then
+          level_thick = 0.5*GV%H_to_Z*(h(II,jj,kk)+h(IIm1,jj,kk))
+          MidPoint = Bottom - 0.5*level_thick
+          Bottom = Bottom - level_thick
+          ! -> Stokes drift in thin layers not averaged.
+          if (level_thick>min_level_thick_avg) then
+            do b = 1,NumBands
+              if (PartitionMode==0) then
               ! In wavenumber we are averaging over level
-              CMN_FAC = (exp(Top*2.*CS%WaveNum_Cen(b))-exp(Bottom*2.*CS%WaveNum_Cen(b)))&
-                        / ((Top-Bottom)*(2.*CS%WaveNum_Cen(b)))
-            elseif (PartitionMode==1) then
-              if (CS%StkLevelMode==0) then
-                ! Take the value at the midpoint
-                CMN_FAC = exp(MidPoint*2.*(2.*PI*CS%Freq_Cen(b)*US%T_to_s)**2/(US%L_to_Z**2*GV%g_Earth))
-              elseif (CS%StkLevelMode==1) then
-                ! Use a numerical integration and then
-                ! divide by layer thickness
-                WN = (2.*PI*CS%Freq_Cen(b)*US%T_to_s)**2 / (US%L_to_Z**2*GV%g_Earth) !bgr bug-fix missing g
-                CMN_FAC = (exp(2.*WN*Top)-exp(2.*WN*Bottom)) / (2.*WN*(Top-Bottom))
+                CMN_FAC = (exp(Top*2.*CS%WaveNum_Cen(b))-exp(Bottom*2.*CS%WaveNum_Cen(b)))&
+                          / ((Top-Bottom)*(2.*CS%WaveNum_Cen(b)))
+              elseif (PartitionMode==1) then
+                if (CS%StkLevelMode==0) then
+                  ! Take the value at the midpoint
+                  CMN_FAC = exp(MidPoint*2.*(2.*PI*CS%Freq_Cen(b)*US%T_to_s)**2/(US%L_to_Z**2*GV%g_Earth))
+                elseif (CS%StkLevelMode==1) then
+                  ! Use a numerical integration and then
+                  ! divide by layer thickness
+                  WN = (2.*PI*CS%Freq_Cen(b)*US%T_to_s)**2 / (US%L_to_Z**2*GV%g_Earth) !bgr bug-fix missing g
+                  CMN_FAC = (exp(2.*WN*Top)-exp(2.*WN*Bottom)) / (2.*WN*(Top-Bottom))
+                endif
               endif
-            endif
-            CS%US_x(II,jj,kk) = CS%US_x(II,jj,kk) + CS%STKx0(II,jj,b)*CMN_FAC
-          enddo
+              CS%US_x(II,jj,kk) = CS%US_x(II,jj,kk) + CS%STKx0(II,jj,b)*CMN_FAC
+            enddo
+          else
+            ! Take the value at the midpoint
+            do b = 1,NumBands
+              if (PartitionMode==0) then
+                CMN_FAC = exp(MidPoint*2.*CS%WaveNum_Cen(b))
+              elseif (PartitionMode==1) then
+                 CMN_FAC = exp(MidPoint*2.*(2.*PI*CS%Freq_Cen(b)*US%T_to_s)**2/(US%L_to_Z**2*GV%g_Earth))
+              endif
+              CS%US_x(II,jj,kk) = CS%US_x(II,jj,kk) + CS%STKx0(II,jj,b)*CMN_FAC
+            enddo
+          endif
         enddo
       enddo
     enddo
@@ -595,27 +634,40 @@ subroutine Update_Stokes_Drift(G, GV, US, CS, h, ustar)
         do kk = 1,G%ke
           Top = Bottom
           JJm1 = max(JJ-1,1)
-          MidPoint = Bottom - GV%H_to_Z*0.25*(h(ii,JJ,kk)+h(ii,JJm1,kk))
-          Bottom = Bottom - GV%H_to_Z*0.5*(h(ii,JJ,kk)+h(ii,JJm1,kk))
-          do b = 1,NumBands
-            if (PartitionMode==0) then
+          level_thick = 0.5*GV%H_to_Z*(h(ii,JJ,kk)+h(ii,JJm1,kk))
+          MidPoint = Bottom - 0.5*level_thick
+          Bottom = Bottom - level_thick
+          ! -> Stokes drift in thin layers not averaged.
+          if (level_thick>min_level_thick_avg) then
+            do b = 1,NumBands
+              if (PartitionMode==0) then
               ! In wavenumber we are averaging over level
-              CMN_FAC = (exp(Top*2.*CS%WaveNum_Cen(b)) - &
-                         exp(Bottom*2.*CS%WaveNum_Cen(b))) / &
-                        ((Top-Bottom)*(2.*CS%WaveNum_Cen(b)))
-            elseif (PartitionMode==1) then
-              if (CS%StkLevelMode==0) then
-                ! Take the value at the midpoint
-                CMN_FAC = exp(MidPoint*2.*(2.*PI*CS%Freq_Cen(b)*US%T_to_s)**2/(US%L_to_Z**2*GV%g_Earth))
-              elseif (CS%StkLevelMode==1) then
-                ! Use a numerical integration and then
-                ! divide by layer thickness
-                WN = (2.*PI*CS%Freq_Cen(b)*US%T_to_s)**2 / (US%L_to_Z**2*GV%g_Earth)
-                CMN_FAC = (exp(2.*WN*Top)-exp(2.*WN*Bottom)) / (2.*WN*(Top-Bottom))
+                CMN_FAC = (exp(Top*2.*CS%WaveNum_Cen(b))-exp(Bottom*2.*CS%WaveNum_Cen(b)))&
+                          / ((Top-Bottom)*(2.*CS%WaveNum_Cen(b)))
+              elseif (PartitionMode==1) then
+                if (CS%StkLevelMode==0) then
+                  ! Take the value at the midpoint
+                  CMN_FAC = exp(MidPoint*2.*(2.*PI*CS%Freq_Cen(b)*US%T_to_s)**2/(US%L_to_Z**2*GV%g_Earth))
+                elseif (CS%StkLevelMode==1) then
+                  ! Use a numerical integration and then
+                  ! divide by layer thickness
+                  WN = (2.*PI*CS%Freq_Cen(b)*US%T_to_s)**2 / (US%L_to_Z**2*GV%g_Earth) !bgr bug-fix missing g
+                  CMN_FAC = (exp(2.*WN*Top)-exp(2.*WN*Bottom)) / (2.*WN*(Top-Bottom))
+                endif
               endif
-            endif
-            CS%US_y(ii,JJ,kk) = CS%US_y(ii,JJ,kk) + CS%STKy0(ii,JJ,b)*CMN_FAC
-          enddo
+              CS%US_y(ii,JJ,kk) = CS%US_y(ii,JJ,kk) + CS%STKy0(ii,JJ,b)*CMN_FAC
+            enddo
+          else
+            ! Take the value at the midpoint
+            do b = 1,NumBands
+              if (PartitionMode==0) then
+                CMN_FAC = exp(MidPoint*2.*CS%WaveNum_Cen(b))
+              elseif (PartitionMode==1) then
+                 CMN_FAC = exp(MidPoint*2.*(2.*PI*CS%Freq_Cen(b)*US%T_to_s)**2/(US%L_to_Z**2*GV%g_Earth))
+              endif
+              CS%US_y(ii,JJ,kk) = CS%US_y(ii,JJ,kk) + CS%STKy0(ii,JJ,b)*CMN_FAC
+            enddo
+          endif
         enddo
       enddo
     enddo
