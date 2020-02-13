@@ -302,11 +302,14 @@ subroutine MOM_wave_interface_init(time, G, GV, US, param_file, CS, diag )
     case (COUPLER_STRING)! Reserved for coupling
       DataSource = Coupler
       ! This is just to make something work, but it needs to be read from the wavemodel.
-      NumBands = 1
+      call get_param(param_file,mdl,"STK_BAND_COUPLER",NumBands,                 &
+         "STK_BAND_COUPLER is the number of Stokes drift bands in the coupler. "// &
+         "This has to be consistent with the number of Stokes drift bands in WW3, "//&
+         "or the model will fail.",units='', default=1)
       allocate( CS%WaveNum_Cen(NumBands) )
       allocate( CS%STKx0(G%isdB:G%iedB,G%jsd:G%jed,NumBands))
       allocate( CS%STKy0(G%isdB:G%iedB,G%jsd:G%jed,NumBands))
-      CS%WaveNum_Cen(1) = 6.28/10
+      CS%WaveNum_Cen(:) = 0.0
       CS%STKx0(:,:,:) = 0.0
       CS%STKy0(:,:,:) = 0.0
       partitionmode = 0
@@ -464,16 +467,23 @@ subroutine Update_Surface_Waves(G, GV, US, Day, dt, CS, forces)
     if (DataSource==DATAOVR) then
       call Surface_Bands_by_data_override(day_center, G, GV, US, CS)
     elseif (DataSource==Coupler) then
-       !Interpolate from a grid to c grid
-       do b=1,NumBands
+      if (size(CS%WaveNum_Cen).ne.size(forces%stk_wavenumbers)) then
+        call MOM_error(FATAL, "Number of wavenumber bands in WW3 does not match that in MOM6. "//&
+             "Make sure that STK_BAND_COUPLER in MOM6 input is equal to the number of bands in "//&
+             "ww3_grid.inp, and that your mod_def.ww3 is up to date.")
+      endif
+
+      do b=1,NumBands
+        CS%WaveNum_Cen(b) = forces%stk_wavenumbers(b)
+        !Interpolate from a grid to c grid
         do II=G%iscB,G%iecB
           do jj=G%jsc,G%jec
-            CS%STKx0(II,jj,b) = 0.5*(forces%UStk0(ii,jj)+forces%UStk0(ii+1,jj))
+            CS%STKx0(II,jj,b) = 0.5*(forces%UStkb(ii,jj,b)+forces%UStkb(ii+1,jj,b))
           enddo
         enddo
         do ii=G%isc,G%iec
           do JJ=G%jscB, G%jecB
-            CS%STKY0(ii,JJ,b) = 0.5*(forces%VStk0(ii,jj)+forces%VStk0(ii,jj+1))
+            CS%STKY0(ii,JJ,b) = 0.5*(forces%VStkb(ii,jj,b)+forces%VStkb(ii,jj+1,b))
           enddo
         enddo
         call pass_vector(CS%STKx0(:,:,b),CS%STKy0(:,:,b), G%Domain)
