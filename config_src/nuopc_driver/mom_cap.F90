@@ -70,6 +70,7 @@ use ESMF,  only: ESMF_COORDSYS_SPH_DEG, ESMF_GridCreate, ESMF_INDEX_DELOCAL
 use ESMF,  only: ESMF_MESHLOC_ELEMENT, ESMF_RC_VAL_OUTOFRANGE, ESMF_StateGet
 use ESMF,  only: ESMF_TimePrint, ESMF_AlarmSet, ESMF_FieldGet, ESMF_Array
 use ESMF,  only: ESMF_ArrayCreate
+use ESMF,  only: ESMF_STATEITEM_NOTFOUND, ESMF_FieldWrite
 use ESMF,  only: operator(==), operator(/=), operator(+), operator(-)
 
 ! TODO ESMF_GridCompGetInternalState does not have an explicit Fortran interface.
@@ -1480,12 +1481,17 @@ subroutine DataInitialize(gcomp, rc)
   ! local variables
   type(ESMF_Clock)                       :: clock
   type(ESMF_State)                       :: importState, exportState
+  type(ESMF_Time)                        :: currTime
+  type(ESMF_TimeInterval)                :: timeStep
+  type(ESMF_StateItem_Flag)              :: itemType
   type (ocean_public_type),      pointer :: ocean_public       => NULL()
   type (ocean_state_type),       pointer :: ocean_state        => NULL()
   type(ice_ocean_boundary_type), pointer :: Ice_ocean_boundary => NULL()
   type(ocean_internalstate_wrapper)      :: ocean_internalstate
   type(ocean_grid_type), pointer         :: ocean_grid
   character(240)                         :: msgString
+  character(240)                         :: fldname
+  character(240)                         :: import_timestr, export_timestr
   integer                                :: fieldCount, n
   type(ESMF_Field)                       :: field
   character(len=64),allocatable          :: fieldNameList(:)
@@ -1498,6 +1504,13 @@ subroutine DataInitialize(gcomp, rc)
     line=__LINE__, &
     file=__FILE__)) &
     return  ! bail out
+
+  call ESMF_ClockGet(clock, currTime=currTime, timeStep=timeStep, rc=rc)
+  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+  call ESMF_TimeGet(currTime,          timestring=import_timestr, rc=rc)
+  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+  call ESMF_TimeGet(currTime+timestep, timestring=export_timestr, rc=rc)
+  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 
   call ESMF_GridCompGetInternalState(gcomp, ocean_internalstate, rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -1556,12 +1569,20 @@ subroutine DataInitialize(gcomp, rc)
   endif
 
   if(write_diagnostics) then
-    call NUOPC_Write(exportState, fileNamePrefix='field_init_ocn_export_', &
-      overwrite=overwrite_timeslice,timeslice=import_slice, relaxedFlag=.true., rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+     do n = 1,fldsFrOcn_num
+      fldname = fldsFrOcn(n)%shortname
+      call ESMF_StateGet(exportState, itemName=trim(fldname), itemType=itemType, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+      if (itemType /= ESMF_STATEITEM_NOTFOUND) then
+        call ESMF_StateGet(exportState, itemName=trim(fldname), field=field, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+        call ESMF_FieldWrite(field, fileName='field_init_ocn_export_'//trim(export_timestr)//'.nc', &
+          timeslice=export_slice, overwrite=overwrite_timeslice, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      endif
+     enddo
   endif
 
 end subroutine DataInitialize
@@ -1586,6 +1607,8 @@ subroutine ModelAdvance(gcomp, rc)
   type(ESMF_Time)                        :: startTime
   type(ESMF_TimeInterval)                :: time_elapsed
   integer(ESMF_KIND_I8)                  :: n_interval, time_elapsed_sec
+  type(ESMF_Field)                       :: lfield
+  type(ESMF_StateItem_Flag)              :: itemType
   character(len=64)                      :: timestamp
   type (ocean_public_type),      pointer :: ocean_public       => NULL()
   type (ocean_state_type),       pointer :: ocean_state        => NULL()
@@ -1600,6 +1623,10 @@ subroutine ModelAdvance(gcomp, rc)
   type(ESMF_Time)                        :: MyTime
   integer                                :: seconds, day, year, month, hour, minute
   character(ESMF_MAXSTR)                 :: restartname, cvalue
+
+  integer                                :: n
+  character(240)                         :: import_timestr, export_timestr
+  character(len=128)                     :: fldname
   character(240)                         :: msgString
   character(len=*),parameter             :: subname='(MOM_cap:ModelAdvance)'
 
@@ -1648,6 +1675,9 @@ subroutine ModelAdvance(gcomp, rc)
     line=__LINE__, &
     file=__FILE__)) &
     return  ! bail out
+
+  call ESMF_TimeGet(currTime,          timestring=import_timestr, rc=rc)
+  call ESMF_TimeGet(currTime+timestep, timestring=export_timestr, rc=rc)
 
   Time_step_coupled = esmf2fms_time(timeStep)
   Time = esmf2fms_time(currTime)
@@ -1710,13 +1740,20 @@ subroutine ModelAdvance(gcomp, rc)
      !---------------
 
      if (write_diagnostics) then
-        call NUOPC_Write(importState, fileNamePrefix='field_ocn_import_', &
-             overwrite=overwrite_timeslice,timeslice=import_slice, relaxedFlag=.true., rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-             line=__LINE__, &
-             file=__FILE__)) &
-             return  ! bail out
-        import_slice = import_slice + 1
+     do n = 1,fldsToOcn_num
+      fldname = fldsToOcn(n)%shortname
+      call ESMF_StateGet(importState, itemName=trim(fldname), itemType=itemType, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+      if (itemType /= ESMF_STATEITEM_NOTFOUND) then
+        call ESMF_StateGet(importState, itemName=trim(fldname), field=lfield, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+        call ESMF_FieldWrite(lfield, fileName='field_ocn_import_'//trim(import_timestr)//'.nc', &
+          timeslice=import_slice, overwrite=overwrite_timeslice, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      endif
+     enddo
      endif
 
      !---------------
@@ -1866,13 +1903,20 @@ subroutine ModelAdvance(gcomp, rc)
   !---------------
 
   if (write_diagnostics) then
-     call NUOPC_Write(exportState, fileNamePrefix='field_ocn_export_', &
-          overwrite=overwrite_timeslice,timeslice=export_slice, relaxedFlag=.true., rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return  ! bail out
-     export_slice = export_slice + 1
+     do n = 1,fldsFrOcn_num
+      fldname = fldsFrOcn(n)%shortname
+      call ESMF_StateGet(exportState, itemName=trim(fldname), itemType=itemType, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+      if (itemType /= ESMF_STATEITEM_NOTFOUND) then
+        call ESMF_StateGet(exportState, itemName=trim(fldname), field=lfield, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+        call ESMF_FieldWrite(lfield, fileName='field_ocn_export_'//trim(export_timestr)//'.nc', &
+          timeslice=export_slice, overwrite=overwrite_timeslice, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      endif
+     enddo
   endif
 
   if(profile_memory) call ESMF_VMLogMemInfo("Leaving MOM Model_ADVANCE: ")
