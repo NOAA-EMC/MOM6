@@ -1491,7 +1491,7 @@ subroutine DataInitialize(gcomp, rc)
   type(ocean_grid_type), pointer         :: ocean_grid
   character(240)                         :: msgString
   character(240)                         :: fldname
-  character(240)                         :: import_timestr, export_timestr
+  character(240)                         :: timestr
   integer                                :: fieldCount, n
   type(ESMF_Field)                       :: field
   character(len=64),allocatable          :: fieldNameList(:)
@@ -1507,9 +1507,7 @@ subroutine DataInitialize(gcomp, rc)
 
   call ESMF_ClockGet(clock, currTime=currTime, timeStep=timeStep, rc=rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-  call ESMF_TimeGet(currTime,          timestring=import_timestr, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-  call ESMF_TimeGet(currTime+timestep, timestring=export_timestr, rc=rc)
+  call ESMF_TimeGet(currTime,          timestring=timestr, rc=rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 
   call ESMF_GridCompGetInternalState(gcomp, ocean_internalstate, rc)
@@ -1578,7 +1576,7 @@ subroutine DataInitialize(gcomp, rc)
         call ESMF_StateGet(exportState, itemName=trim(fldname), field=field, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 
-        call ESMF_FieldWrite(field, fileName='field_init_ocn_export_'//trim(export_timestr)//'.nc', &
+        call ESMF_FieldWrite(field, fileName='field_init_ocn_export_'//trim(timestr)//'.nc', &
           timeslice=export_slice, overwrite=overwrite_timeslice, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
       endif
