@@ -1577,7 +1577,7 @@ subroutine DataInitialize(gcomp, rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 
         call ESMF_FieldWrite(field, fileName='field_init_ocn_export_'//trim(timestr)//'.nc', &
-          timeslice=export_slice, overwrite=overwrite_timeslice, rc=rc)
+          timeslice=1, overwrite=overwrite_timeslice, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
       endif
      enddo
@@ -1748,7 +1748,7 @@ subroutine ModelAdvance(gcomp, rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 
         call ESMF_FieldWrite(lfield, fileName='field_ocn_import_'//trim(import_timestr)//'.nc', &
-          timeslice=import_slice, overwrite=overwrite_timeslice, rc=rc)
+          timeslice=1, overwrite=overwrite_timeslice, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
       endif
      enddo
@@ -1911,7 +1911,7 @@ subroutine ModelAdvance(gcomp, rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 
         call ESMF_FieldWrite(lfield, fileName='field_ocn_export_'//trim(export_timestr)//'.nc', &
-          timeslice=export_slice, overwrite=overwrite_timeslice, rc=rc)
+          timeslice=1, overwrite=overwrite_timeslice, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
       endif
      enddo
