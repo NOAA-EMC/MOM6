@@ -1824,6 +1824,7 @@ subroutine ModelAdvance(gcomp, rc)
              "ocn", year, month, day, hour, minute, seconds
      else
         ! *** TODO: Do what NEMS needs ***
+        write(restartname,'(A)')'MOM.res'
      end if
      call ESMF_LogWrite("MOM_cap: Using restart filename:  "//trim(restartname), ESMF_LOGMSG_INFO, rc=rc)
      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
