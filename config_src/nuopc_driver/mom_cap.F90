@@ -70,6 +70,7 @@ use ESMF,  only: ESMF_COORDSYS_SPH_DEG, ESMF_GridCreate, ESMF_INDEX_DELOCAL
 use ESMF,  only: ESMF_MESHLOC_ELEMENT, ESMF_RC_VAL_OUTOFRANGE, ESMF_StateGet
 use ESMF,  only: ESMF_TimePrint, ESMF_AlarmSet, ESMF_FieldGet, ESMF_Array
 use ESMF,  only: ESMF_ArrayCreate
+use ESMF,  only: ESMF_AlarmCreate
 use ESMF,  only: ESMF_STATEITEM_NOTFOUND, ESMF_FieldWrite
 use ESMF,  only: operator(==), operator(/=), operator(+), operator(-)
 
@@ -1593,7 +1594,7 @@ subroutine ModelAdvance(gcomp, rc)
   logical                                :: existflag, isPresent, isSet
   logical                                :: do_advance = .true.
   type(ESMF_Clock)                       :: clock!< ESMF Clock class definition
-  type(ESMF_Alarm)                       :: alarm
+  type(ESMF_Alarm)                       :: alarm, stop_alarm
   type(ESMF_State)                       :: importState, exportState
   type(ESMF_Time)                        :: currTime
   type(ESMF_TimeInterval)                :: timeStep
@@ -1786,6 +1787,16 @@ subroutine ModelAdvance(gcomp, rc)
   endif
 
   !---------------
+  ! Get the stop alarm
+  !---------------
+
+  call ESMF_ClockGetAlarm(clock, alarmname='stop_alarm', alarm=stop_alarm, rc=rc)
+  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+  !---------------
   ! If restart alarm is ringing - write restart file
   !---------------
 
@@ -1823,8 +1834,13 @@ subroutine ModelAdvance(gcomp, rc)
         write(restartname,'(A,".mom6.r.",I4.4,"-",I2.2,"-",I2.2,"-",I2.2,"-",I2.2,"-",I2.2)') &
              "ocn", year, month, day, hour, minute, seconds
      else
-        ! *** TODO: Do what NEMS needs ***
-        write(restartname,'(A)')'MOM.res'
+      ! write the final restart without a timestamp
+      if (ESMF_AlarmIsRinging(stop_alarm, rc=rc)) then
+        write(restartname,'(A)')"MOM.res"
+      else
+        write(restartname,'(A,I4.4,"-",I2.2,"-",I2.2,"-",I2.2,"-",I2.2,"-",I2.2)') &
+             "MOM.res.", year, month, day, hour, minute, seconds
+      endif
      end if
      call ESMF_LogWrite("MOM_cap: Using restart filename:  "//trim(restartname), ESMF_LOGMSG_INFO, rc=rc)
      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -1873,7 +1889,7 @@ subroutine ModelSetRunClock(gcomp, rc)
   ! local variables
   type(ESMF_Clock)         :: mclock, dclock
   type(ESMF_Time)          :: mcurrtime, dcurrtime
-  type(ESMF_Time)          :: mstoptime
+  type(ESMF_Time)          :: mstoptime, dstoptime
   type(ESMF_TimeInterval)  :: mtimestep, dtimestep
   character(len=128)       :: mtimestring, dtimestring
   character(len=256)       :: cvalue
@@ -1881,9 +1897,11 @@ subroutine ModelSetRunClock(gcomp, rc)
   integer                  :: restart_n      ! Number until restart interval
   integer                  :: restart_ymd    ! Restart date (YYYYMMDD)
   type(ESMF_ALARM)         :: restart_alarm
+  type(ESMF_ALARM)         :: stop_alarm
   logical                  :: isPresent, isSet
   logical                  :: first_time = .true.
   character(len=*),parameter :: subname='MOM_cap:(ModelSetRunClock) '
+  character(len=256)       :: timestr
   !--------------------------------
 
   rc = ESMF_SUCCESS
@@ -1895,7 +1913,8 @@ subroutine ModelSetRunClock(gcomp, rc)
     file=__FILE__)) &
     return  ! bail out
 
-  call ESMF_ClockGet(dclock, currTime=dcurrtime, timeStep=dtimestep, rc=rc)
+  call ESMF_ClockGet(dclock, currTime=dcurrtime, timeStep=dtimestep, &
+                     stopTime=dstoptime, rc=rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
     line=__LINE__, &
     file=__FILE__)) &
@@ -2010,6 +2029,11 @@ subroutine ModelSetRunClock(gcomp, rc)
           file=__FILE__)) &
           return  ! bail out
 
+     ! create a 1-shot alarm at the driver stop time
+     stop_alarm = ESMF_AlarmCreate(mclock, ringtime=dstopTime, name = "stop_alarm", rc=rc)
+ 
+     call ESMF_TimeGet(dstoptime, timestring=timestr, rc=rc)
+     call ESMF_LogWrite("Stop Alarm will ring at : "//trim(timestr), ESMF_LOGMSG_INFO, rc=rc)
   endif
 
   !--------------------------------
