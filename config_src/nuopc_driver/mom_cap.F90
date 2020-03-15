@@ -70,7 +70,7 @@ use ESMF,  only: ESMF_COORDSYS_SPH_DEG, ESMF_GridCreate, ESMF_INDEX_DELOCAL
 use ESMF,  only: ESMF_MESHLOC_ELEMENT, ESMF_RC_VAL_OUTOFRANGE, ESMF_StateGet
 use ESMF,  only: ESMF_TimePrint, ESMF_AlarmSet, ESMF_FieldGet, ESMF_Array
 use ESMF,  only: ESMF_ArrayCreate
-use ESMF,  only: ESMF_AlarmCreate
+use ESMF,  only: ESMF_AlarmCreate, ESMF_AlarmIsCreated
 use ESMF,  only: ESMF_STATEITEM_NOTFOUND, ESMF_FieldWrite
 use ESMF,  only: operator(==), operator(/=), operator(+), operator(-)
 
@@ -1594,7 +1594,7 @@ subroutine ModelAdvance(gcomp, rc)
   logical                                :: existflag, isPresent, isSet
   logical                                :: do_advance = .true.
   type(ESMF_Clock)                       :: clock!< ESMF Clock class definition
-  type(ESMF_Alarm)                       :: alarm, stop_alarm
+  type(ESMF_Alarm)                       :: restart_alarm, stop_alarm
   type(ESMF_State)                       :: importState, exportState
   type(ESMF_Time)                        :: currTime
   type(ESMF_TimeInterval)                :: timeStep
@@ -1790,70 +1790,75 @@ subroutine ModelAdvance(gcomp, rc)
   ! Get the stop alarm
   !---------------
 
-  call ESMF_ClockGetAlarm(clock, alarmname='stop_alarm', alarm=stop_alarm, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+  if(ESMF_AlarmIsCreated(stop_alarm, rc=rc))then
+    call ESMF_ClockGetAlarm(clock, alarmname='stop_alarm', alarm=stop_alarm, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+  endif
 
   !---------------
-  ! If restart alarm is ringing - write restart file
+  ! If restart alarm exists and is ringing - write restart file
   !---------------
 
-  call ESMF_ClockGetAlarm(clock, alarmname='alarm_restart', alarm=alarm, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+  if(ESMF_AlarmIsCreated(restart_alarm, rc=rc))then
+    call ESMF_ClockGetAlarm(clock, alarmname='restart_alarm', alarm=restart_alarm, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+     call ESMF_LogWrite("Got restart alarm", ESMF_LOGMSG_INFO, rc=rc)
 
-  if (ESMF_AlarmIsRinging(alarm, rc=rc)) then
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return  ! bail out
+    if (ESMF_AlarmIsRinging(restart_alarm, rc=rc)) then
+       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+           line=__LINE__, &
+           file=__FILE__)) &
+           return  ! bail out
 
-     ! turn off the alarm
-     call ESMF_AlarmRingerOff(alarm, rc=rc )
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return  ! bail out
+       ! turn off the alarm
+       call ESMF_AlarmRingerOff(restart_alarm, rc=rc )
+       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+           line=__LINE__, &
+           file=__FILE__)) &
+           return  ! bail out
 
-     ! determine restart filename
-     call ESMF_ClockGetNextTime(clock, MyTime, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
-     call ESMF_TimeGet (MyTime, yy=year, mm=month, dd=day, h=hour, m=minute, s=seconds, rc=rc )
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
-     if (cesm_coupled) then
-        write(restartname,'(A,".mom6.r.",I4.4,"-",I2.2,"-",I2.2,"-",I2.2,"-",I2.2,"-",I2.2)') &
-             "ocn", year, month, day, hour, minute, seconds
-     else
-      ! write the final restart without a timestamp
-      if (ESMF_AlarmIsRinging(stop_alarm, rc=rc)) then
-        write(restartname,'(A)')"MOM.res"
-      else
-        write(restartname,'(A,I4.4,"-",I2.2,"-",I2.2,"-",I2.2,"-",I2.2,"-",I2.2)') &
-             "MOM.res.", year, month, day, hour, minute, seconds
-      endif
-     end if
-     call ESMF_LogWrite("MOM_cap: Using restart filename:  "//trim(restartname), ESMF_LOGMSG_INFO, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
+       ! determine restart filename
+       call ESMF_ClockGetNextTime(clock, MyTime, rc=rc)
+       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
+       call ESMF_TimeGet (MyTime, yy=year, mm=month, dd=day, h=hour, m=minute, s=seconds, rc=rc )
+       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
+       if (cesm_coupled) then
+          write(restartname,'(A,".mom6.r.",I4.4,"-",I2.2,"-",I2.2,"-",I2.2,"-",I2.2,"-",I2.2)') &
+               "ocn", year, month, day, hour, minute, seconds
+       else
+        ! write the final restart without a timestamp
+        if (ESMF_AlarmIsRinging(stop_alarm, rc=rc)) then
+          write(restartname,'(A)')"MOM.res"
+        else
+          write(restartname,'(A,I4.4,"-",I2.2,"-",I2.2,"-",I2.2,"-",I2.2,"-",I2.2)') &
+               "MOM.res.", year, month, day, hour, minute, seconds
+        endif
+       end if
+       call ESMF_LogWrite("MOM_cap: Using restart filename:  "//trim(restartname), ESMF_LOGMSG_INFO, rc=rc)
+       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
 
-     ! write restart file(s)
-     call ocean_model_restart(ocean_state, restartname=restartname)
+       ! write restart file(s)
+       call ocean_model_restart(ocean_state, restartname=restartname)
 
-     if (is_root_pe()) then
-       write(logunit,*) subname//' writing restart file ',trim(restartname)
-     endif
+       if (is_root_pe()) then
+         write(logunit,*) subname//' writing restart file ',trim(restartname)
+       endif
+    endif
   endif
 
   !---------------
@@ -1896,8 +1901,8 @@ subroutine ModelSetRunClock(gcomp, rc)
   character(len=256)       :: restart_option ! Restart option units
   integer                  :: restart_n      ! Number until restart interval
   integer                  :: restart_ymd    ! Restart date (YYYYMMDD)
-  type(ESMF_ALARM)         :: restart_alarm
-  type(ESMF_ALARM)         :: stop_alarm
+  type(ESMF_Alarm)         :: restart_alarm
+  type(ESMF_Alarm)         :: stop_alarm
   logical                  :: isPresent, isSet
   logical                  :: first_time = .true.
   character(len=*),parameter :: subname='MOM_cap:(ModelSetRunClock) '
@@ -2007,7 +2012,7 @@ subroutine ModelSetRunClock(gcomp, rc)
              opt_n   = restart_n,             &
              opt_ymd = restart_ymd,           &
              RefTime = mcurrTime,             &
-             alarmname = 'alarm_restart', rc=rc)
+             alarmname = 'restart_alarm', rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
              line=__LINE__, &
              file=__FILE__)) &
@@ -2073,8 +2078,8 @@ subroutine ocean_model_finalize(gcomp, rc)
   type(TIME_TYPE)                        :: Time
   type(ESMF_Clock)                       :: clock
   type(ESMF_Time)                        :: currTime
+  type(ESMF_Alarm)                       :: restart_alarm
   character(len=64)                      :: timestamp
-  integer                                :: alarmCount
   character(len=*),parameter  :: subname='(MOM_cap:ocean_model_finalize)'
 
   write(*,*) 'MOM: --- finalize called ---'
@@ -2103,12 +2108,7 @@ subroutine ocean_model_finalize(gcomp, rc)
   Time = esmf2fms_time(currTime)
 
   ! Check if the clock has a restart alarm - and if it does do not write a restart
-  call ESMF_ClockGet(clock, alarmCount=alarmCount, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
-  if (alarmCount == 0) then
+  if(.not. ESMF_AlarmIsCreated(restart_alarm, rc=rc))then
      call ocean_model_end(ocean_public, ocean_State, Time, write_restart=.true.)
   endif
   call field_manager_end()
