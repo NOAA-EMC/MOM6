@@ -70,7 +70,8 @@ use ESMF,  only: ESMF_COORDSYS_SPH_DEG, ESMF_GridCreate, ESMF_INDEX_DELOCAL
 use ESMF,  only: ESMF_MESHLOC_ELEMENT, ESMF_RC_VAL_OUTOFRANGE, ESMF_StateGet
 use ESMF,  only: ESMF_TimePrint, ESMF_AlarmSet, ESMF_FieldGet, ESMF_Array
 use ESMF,  only: ESMF_ArrayCreate
-use ESMF,  only: ESMF_AlarmCreate, ESMF_ClockGetAlarmList, ESMF_AlarmList_Flag, ESMF_ALARMLIST_ALL
+use ESMF,  only: ESMF_AlarmCreate, ESMF_ClockGetAlarmList, ESMF_AlarmList_Flag 
+use ESMF,  only: ESMF_AlarmGet, ESMF_AlarmIsCreated, ESMF_ALARMLIST_ALL
 use ESMF,  only: ESMF_STATEITEM_NOTFOUND, ESMF_FieldWrite
 use ESMF,  only: operator(==), operator(/=), operator(+), operator(-)
 
@@ -1799,7 +1800,7 @@ subroutine ModelAdvance(gcomp, rc)
   !---------------
   ! If restart alarm exists and is ringing - write restart file
   !---------------
-
+  if(ESMF_AlarmIsCreated(restart_alarm, rc=rc))then
   call ESMF_ClockGetAlarm(clock, alarmname='restart_alarm', alarm=restart_alarm, rc=rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -1856,6 +1857,7 @@ subroutine ModelAdvance(gcomp, rc)
          write(logunit,*) subname//' writing restart file ',trim(restartname)
        endif
     endif
+  end if
 
   !---------------
   ! Write diagnostics
@@ -2076,10 +2078,11 @@ subroutine ocean_model_finalize(gcomp, rc)
   type(TIME_TYPE)                        :: Time
   type(ESMF_Clock)                       :: clock
   type(ESMF_Time)                        :: currTime
-  type(ESMF_Alarm)                       :: restart_alarm
+  1type(ESMF_Alarm)                       :: restart_alarm
   type(ESMF_Alarm), allocatable          :: alarmList(:)
   integer                                :: alarmCount
   character(len=64)                      :: timestamp
+  character(len=64)                      :: alarm_name
   logical                                :: write_restart
   integer                                :: i
   character(len=*),parameter  :: subname='(MOM_cap:ocean_model_finalize)'
@@ -2119,9 +2122,10 @@ subroutine ocean_model_finalize(gcomp, rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return
 
-  write_restart = .false.
+  write_restart = .true.
   do i = 1,alarmCount
-   if(alarmList(i) == restart_alarm)write_restart = .false.
+   call ESMF_AlarmGet(alarmlist(i), name=alarm_name, rc = rc)
+   if(trim(alarm_name) == 'restart_alarm')write_restart = .false.
   enddo
   deallocate(alarmList)
 
