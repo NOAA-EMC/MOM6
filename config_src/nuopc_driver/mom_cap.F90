@@ -1897,6 +1897,7 @@ subroutine ModelSetRunClock(gcomp, rc)
   character(len=256)       :: restart_option ! Restart option units
   integer                  :: restart_n      ! Number until restart interval
   integer                  :: restart_ymd    ! Restart date (YYYYMMDD)
+  type(ESMF_Alarm)         :: restart_alarm
   type(ESMF_Alarm)         :: stop_alarm
   logical                  :: isPresent, isSet
   logical                  :: first_time = .true.
