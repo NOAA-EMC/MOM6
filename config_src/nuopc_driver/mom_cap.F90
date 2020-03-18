@@ -2131,10 +2131,8 @@ subroutine ocean_model_finalize(gcomp, rc)
   enddo
   deallocate(alarmList)
 
-  if(write_restart)then
-     call ESMF_LogWrite("No Restart Alarm, writing restart at Finalize ", ESMF_LOGMSG_INFO, rc=rc)
-     call ocean_model_end(ocean_public, ocean_State, Time, write_restart=write_restart)
-  endif
+  if(write_restart)call ESMF_LogWrite("No Restart Alarm, writing restart at Finalize ", ESMF_LOGMSG_INFO, rc=rc)
+  call ocean_model_end(ocean_public, ocean_State, Time, write_restart=write_restart)
   call field_manager_end()
 
   call fms_io_exit()
