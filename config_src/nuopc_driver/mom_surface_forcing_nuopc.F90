@@ -427,6 +427,9 @@ subroutine convert_IOB_to_fluxes(IOB, fluxes, index_bounds, Time, valid_time, G,
                           "there is no associated runoff in the IOB")
     return
   end if
+  if(CS%liquid_runoff_from_data)then
+   call data_override('OCN', 'runoff', IOB%lrunoff, Time)
+  endif
 
   ! obtain fluxes from IOB; note the staggering of indices
   i0 = is - isc_bnd ; j0 = js - jsc_bnd
@@ -443,7 +446,6 @@ subroutine convert_IOB_to_fluxes(IOB, fluxes, index_bounds, Time, valid_time, G,
 
     ! liquid runoff flux
     if (associated(IOB%lrunoff)) then
-      if(CS%liquid_runoff_from_data)call data_override('OCN', 'runoff', IOB%lrunoff, Time)
       fluxes%lrunoff(i,j) = kg_m2_s_conversion * IOB%lrunoff(i-i0,j-j0) * G%mask2dT(i,j)
     endif
 
