@@ -70,6 +70,8 @@ use ESMF,  only: ESMF_COORDSYS_SPH_DEG, ESMF_GridCreate, ESMF_INDEX_DELOCAL
 use ESMF,  only: ESMF_MESHLOC_ELEMENT, ESMF_RC_VAL_OUTOFRANGE, ESMF_StateGet
 use ESMF,  only: ESMF_TimePrint, ESMF_AlarmSet, ESMF_FieldGet, ESMF_Array
 use ESMF,  only: ESMF_ArrayCreate
+use ESMF,  only: ESMF_RC_FILE_OPEN, ESMF_RC_FILE_READ, ESMF_RC_FILE_WRITE
+use ESMF,  only: ESMF_VMBroadcast
 use ESMF,  only: ESMF_AlarmCreate, ESMF_ClockGetAlarmList, ESMF_AlarmList_Flag 
 use ESMF,  only: ESMF_AlarmGet, ESMF_AlarmIsCreated, ESMF_ALARMLIST_ALL, ESMF_AlarmIsEnabled
 use ESMF,  only: ESMF_STATEITEM_NOTFOUND, ESMF_FieldWrite
@@ -412,13 +414,6 @@ subroutine InitializeP0(gcomp, importState, exportState, clock, rc)
           return
   endif
 
-  call NUOPC_CompAttributeAdd(gcomp, &
-       attrList=(/'RestartFileToRead', 'RestartFileToWrite'/), rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-       line=__LINE__, &
-       file=__FILE__)) &
-       return
-
 end subroutine
 
 !> Called by NUOPC to advertise import and export fields.  "Advertise"
@@ -465,6 +460,9 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
   logical                                :: isPresent, isPresentDiro, isPresentLogfile, isSet
   logical                                :: existflag
   integer                                :: userRc
+  integer                                :: localPet
+  integer                                :: iostat
+  integer                                :: readunit
   character(len=512)                     :: restartfile          ! Path/Name of restart file
   character(len=*), parameter            :: subname='(MOM_cap:InitializeAdvertise)'
   character(len=32)                      :: calendar
@@ -657,50 +655,40 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
 
   restartfile = ""
   if (runtype == "initial") then
-     ! startup (new run) - 'n' is needed below if we don't specify input_filename in input.nml
+
      restartfile = "n"
+
   else if (runtype == "continue") then ! hybrid or branch or continuos runs
 
-     ! optionally call into system-specific implementation to get restart file name
-     call ESMF_MethodExecute(gcomp, label="GetRestartFileToRead", &
-          existflag=existflag, userRc=userRc, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg="Error executing user method to get restart filename", &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return  ! bail out
-     if (ESMF_LogFoundError(rcToCheck=userRc, msg="Error in method to get restart filename", &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return  ! bail out
-     if (existflag) then
-        call ESMF_LogWrite('MOM_cap: called user GetRestartFileToRead', ESMF_LOGMSG_INFO, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-            line=__LINE__, &
-            file=__FILE__)) &
-            return
-     endif
+     if (cesm_coupled) then
+        call ESMF_LogWrite('MOM_cap: restart requested, using rpointer.ocn', ESMF_LOGMSG_WARNING)
+        call ESMF_GridCompGet(gcomp, vm=vm, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
+        call ESMF_VMGet(vm, localPet=localPet, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
 
-     call NUOPC_CompAttributeGet(gcomp, name='RestartFileToRead', &
-          value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
-     if (isPresent .and. isSet) then
-        restartfile = trim(cvalue)
-        call ESMF_LogWrite('MOM_cap: RestartFileToRead = '//trim(restartfile), ESMF_LOGMSG_INFO, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-            line=__LINE__, &
-            file=__FILE__)) &
-            return
-     else
-        call ESMF_LogWrite('MOM_cap: restart requested, no RestartFileToRead attribute provided-will use input.nml',&
-             ESMF_LOGMSG_WARNING, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-            line=__LINE__, &
-            file=__FILE__)) &
-            return
-     endif
+        if (localPet == 0) then
+           ! this hard coded for rpointer.ocn right now
+            open(newunit=readunit, file='rpointer.ocn', form='formatted', status='old', iostat=iostat)
+            if (iostat /= 0) then
+                call ESMF_LogSetError(ESMF_RC_FILE_OPEN, msg=subname//' ERROR opening rpointer.ocn', &
+                     line=__LINE__, file=u_FILE_u, rcToReturn=rc)
+                return
+            endif
+            read(readunit,'(a)', iostat=iostat) restartfile
+            if (iostat /= 0) then
+               call ESMF_LogSetError(ESMF_RC_FILE_READ, msg=subname//' ERROR reading rpointer.ocn', &
+                    line=__LINE__, file=u_FILE_u, rcToReturn=rc)
+                return
+            endif
+            close(readunit)
+         endif
+         ! broadcast attribute set on master task to all tasks
+         call ESMF_VMBroadcast(vm, restartfile, count=ESMF_MAXSTR-1, rootPet=0, rc=rc)
+         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
+      else
+         call ESMF_LogWrite('MOM_cap: restart requested, use input.nml', ESMF_LOGMSG_WARNING)
+       endif
 
   endif
 
@@ -1555,7 +1543,6 @@ subroutine DataInitialize(gcomp, rc)
   ! check whether all Fields in the exportState are "Updated"
   if (NUOPC_IsUpdated(exportState)) then
     call NUOPC_CompAttributeSet(gcomp, name="InitializeDataComplete", value="true", rc=rc)
-
     call ESMF_LogWrite("MOM6 - Initialize-Data-Dependency SATISFIED!!!", ESMF_LOGMSG_INFO, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -1618,11 +1605,15 @@ subroutine ModelAdvance(gcomp, rc)
   type(ESMF_Time)                        :: MyTime
   integer                                :: seconds, day, year, month, hour, minute
   character(ESMF_MAXSTR)                 :: restartname, cvalue
-
+  character(240)                         :: msgString
+  character(ESMF_MAXSTR)                 :: casename
+  integer                                :: iostat
+  integer                                :: writeunit
+  integer                                :: localPet
+  type(ESMF_VM)                          :: vm
   integer                                :: n
   character(240)                         :: import_timestr, export_timestr
   character(len=128)                     :: fldname
-  character(240)                         :: msgString
   character(len=*),parameter             :: subname='(MOM_cap:ModelAdvance)'
 
   rc = ESMF_SUCCESS
@@ -1832,8 +1823,26 @@ subroutine ModelAdvance(gcomp, rc)
       file=__FILE__)) &
       return  ! bail out
     if (cesm_coupled) then
-       write(restartname,'(A,".mom6.r.",I4.4,"-",I2.2,"-",I2.2,"-",I2.2,"-",I2.2,"-",I2.2)') &
-            "ocn", year, month, day, hour, minute, seconds
+        call NUOPC_CompAttributeGet(gcomp, name='case_name', value=casename, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
+        call ESMF_GridCompGet(gcomp, vm=vm, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
+        call ESMF_VMGet(vm, localPet=localPet, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
+
+        write(restartname,'(A,".mom6.r.",I4.4,"-",I2.2,"-",I2.2,"-",I5.5)') &
+             trim(casename), year, month, day, seconds
+        if (localPet == 0) then
+           ! Write name of restart file in the rpointer file - this is currently hard-coded for the ocean
+           open(newunit=writeunit, file='rpointer.ocn', form='formatted', status='unknown', iostat=iostat)
+           if (iostat /= 0) then
+              call ESMF_LogSetError(ESMF_RC_FILE_OPEN, &
+                   msg=subname//' ERROR opening rpointer.ocn', line=__LINE__, file=u_FILE_u, rcToReturn=rc)
+              return
+           endif
+           write(writeunit,'(a)') trim(restartname)//'.nc'
+           close(writeunit)
+        endif
     else
       ! write the final restart without a timestamp
       if (ESMF_AlarmIsRinging(stop_alarm, rc=rc)) then
@@ -1842,12 +1851,8 @@ subroutine ModelAdvance(gcomp, rc)
         write(restartname,'(A,I4.4,"-",I2.2,"-",I2.2,"-",I2.2,"-",I2.2,"-",I2.2)') &
              "MOM.res.", year, month, day, hour, minute, seconds
       endif
-     end if
-     call ESMF_LogWrite("MOM_cap: Writing restart :  "//trim(restartname), ESMF_LOGMSG_INFO, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return  ! bail out
+    end if
+    call ESMF_LogWrite("MOM_cap: Writing restart :  "//trim(restartname), ESMF_LOGMSG_INFO, rc=rc)
 
      ! write restart file(s)
      call ocean_model_restart(ocean_state, restartname=restartname)
@@ -1976,6 +1981,7 @@ subroutine ModelSetRunClock(gcomp, rc)
      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
          line=__LINE__, file=__FILE__)) return
 
+     ! If restart_option is set then must also have set either restart_n or restart_ymd
      if (isPresent .and. isSet) then
        call ESMF_LogWrite(subname//" Restart_n = "//trim(cvalue), ESMF_LOGMSG_INFO, rc=rc)
        read(cvalue,*) restart_n
