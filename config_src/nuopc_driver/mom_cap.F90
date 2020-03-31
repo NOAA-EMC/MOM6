@@ -1976,44 +1976,71 @@ subroutine ModelSetRunClock(gcomp, rc)
      restart_n = 0
      restart_ymd = 0
 
-     call NUOPC_CompAttributeGet(gcomp, name="restart_n", value=cvalue, &
-          isPresent=isPresent, isSet=isSet, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, file=__FILE__)) return
+     if (cesm_coupled) then
+        call NUOPC_CompAttributeGet(gcomp, name="restart_option", value=restart_option, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
 
-     ! If restart_option is set then must also have set either restart_n or restart_ymd
-     if (isPresent .and. isSet) then
-       call ESMF_LogWrite(subname//" Restart_n = "//trim(cvalue), ESMF_LOGMSG_INFO, rc=rc)
-       read(cvalue,*) restart_n
-       if(restart_n /= 0)then
-         call NUOPC_CompAttributeGet(gcomp, name="restart_option", value=cvalue, &
-              isPresent=isPresent, isSet=isSet, rc=rc)
-         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-             line=__LINE__, file=__FILE__)) return
-         if (isPresent .and. isSet) then
-           read(cvalue,*) restart_option
-           call ESMF_LogWrite(subname//" Restart_option = "//restart_option, &
-                ESMF_LOGMSG_INFO, rc=rc)
-         endif
+        ! If restart_option is set then must also have set either restart_n or restart_ymd
+        call NUOPC_CompAttributeGet(gcomp, name="restart_n", value=cvalue, &
+                isPresent=isPresent, isSet=isSet, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
+        if (isPresent .and. isSet) then
+           read(cvalue,*) restart_n
+        endif
+        call NUOPC_CompAttributeGet(gcomp, name="restart_ymd", value=cvalue, &
+             isPresent=isPresent, isSet=isSet, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
+        if (isPresent .and. isSet) then
+           read(cvalue,*) restart_ymd
+        endif
+        if (restart_n == 0 .and. restart_ymd == 0) then
+           call ESMF_LogSetError(ESMF_RC_VAL_WRONG, &
+                msg=subname//": ERROR both restart_n and restart_ymd are zero for restart_option set ",  &
+                line=__LINE__, file=__FILE__, rcToReturn=rc)
+           return
+        endif
+        call ESMF_LogWrite(subname//" Set restart option = "//restart_option, ESMF_LOGMSG_INFO)
 
-         call NUOPC_CompAttributeGet(gcomp, name="restart_ymd", value=cvalue, &
-              isPresent=isPresent, isSet=isSet, rc=rc)
-         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-             line=__LINE__, file=__FILE__)) return
-         if (isPresent .and. isSet) then
-            read(cvalue,*) restart_ymd
-            call ESMF_LogWrite(subname//" Restart_ymd = "//trim(cvalue), ESMF_LOGMSG_INFO, rc=rc)
-         endif
-       else
-         restart_option = 'none'
-         call ESMF_LogWrite(subname//" Set restart option = "//restart_option, &
-              ESMF_LOGMSG_INFO, rc=rc)
-         !TODO: Find a better way
-         !Create but disable the restart_alarm; this is so restart writing can function w or w/o
-         !restart_n=0
-         restart_alarm = ESMF_AlarmCreate(mclock, ringtime=dstopTime, name = "restart_alarm", enabled = .false., rc=rc)
-         call ESMF_LogWrite(subname//" Restart alarm is Created but Disabled", ESMF_LOGMSG_INFO, rc=rc)
-       endif
+     else
+        call NUOPC_CompAttributeGet(gcomp, name="restart_n", value=cvalue, &
+             isPresent=isPresent, isSet=isSet, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=__FILE__)) return
+
+        ! If restart_option is set then must also have set either restart_n or restart_ymd
+        if (isPresent .and. isSet) then
+          call ESMF_LogWrite(subname//" Restart_n = "//trim(cvalue), ESMF_LOGMSG_INFO, rc=rc)
+          read(cvalue,*) restart_n
+          if(restart_n /= 0)then
+            call NUOPC_CompAttributeGet(gcomp, name="restart_option", value=cvalue, &
+                 isPresent=isPresent, isSet=isSet, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=__FILE__)) return
+            if (isPresent .and. isSet) then
+              read(cvalue,*) restart_option
+              call ESMF_LogWrite(subname//" Restart_option = "//restart_option, &
+                   ESMF_LOGMSG_INFO, rc=rc)
+            endif
+
+            call NUOPC_CompAttributeGet(gcomp, name="restart_ymd", value=cvalue, &
+                 isPresent=isPresent, isSet=isSet, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=__FILE__)) return
+            if (isPresent .and. isSet) then
+               read(cvalue,*) restart_ymd
+               call ESMF_LogWrite(subname//" Restart_ymd = "//trim(cvalue), ESMF_LOGMSG_INFO, rc=rc)
+            endif
+          else
+            restart_option = 'none'
+            call ESMF_LogWrite(subname//" Set restart option = "//restart_option, &
+                 ESMF_LOGMSG_INFO, rc=rc)
+            !TODO: Find a better way
+            !Create but disable the restart_alarm; this is so restart writing can function w or w/o
+            !restart_n=0
+            restart_alarm = ESMF_AlarmCreate(mclock, ringtime=dstopTime, name = "restart_alarm", enabled = .false., rc=rc)
+            call ESMF_LogWrite(subname//" Restart alarm is Created but Disabled", ESMF_LOGMSG_INFO, rc=rc)
+          endif
+        endif
      endif
 
      ! Do not initialize an alarm if the restart option is none
