@@ -132,7 +132,7 @@ character(len=128)   :: scalar_field_name = ''
 integer              :: scalar_field_count = 0
 integer              :: scalar_field_idx_grid_nx = 0
 integer              :: scalar_field_idx_grid_ny = 0
-character(len=*),parameter :: u_file_u = &
+character(len=*),parameter :: u_FILE_u = &
      __FILE__
 
 #ifdef CESMCOUPLED

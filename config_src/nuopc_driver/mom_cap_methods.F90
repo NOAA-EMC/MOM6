@@ -43,7 +43,7 @@ integer                  :: import_cnt = 0!< used to skip using the import state
 type(ESMF_GeomType_Flag) :: geomtype      !< SMF type describing type of
                                           !! geometry (mesh or grid)
 
-character(len=*),parameter :: u_file_u = &
+character(len=*),parameter :: u_FILE_u = &
      __FILE__
 
 contains
