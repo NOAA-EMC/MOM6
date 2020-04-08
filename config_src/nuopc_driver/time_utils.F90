@@ -34,6 +34,9 @@ public esmf2fms_time
 public fms2esmf_time
 public string_to_date
 
+character(len=*),parameter :: u_FILE_u = &
+     __FILE__
+
 contains
 
 !> Sets fms2esmf_cal_c to the corresponding ESMF calendar type
