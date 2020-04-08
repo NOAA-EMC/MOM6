@@ -1794,27 +1794,26 @@ subroutine ModelAdvance(gcomp, rc)
   ! If restart alarm exists and is ringing - write restart file
   !---------------
 
-  call ESMF_ClockGetAlarm(clock, alarmname='restart_alarm', alarm=restart_alarm, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-  if (ESMF_AlarmIsRinging(restart_alarm, rc=rc)) then
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-  ! turn off the alarm
-  call ESMF_AlarmRingerOff(restart_alarm, rc=rc )
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-
-  ! determine restart filename
   if (restart_mode == 'cmeps') then
+     call ESMF_ClockGetAlarm(clock, alarmname='restart_alarm', alarm=restart_alarm, rc=rc)
+     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+         line=__LINE__, &
+         file=__FILE__)) &
+         return  ! bail out
+
+     if (ESMF_AlarmIsRinging(restart_alarm, rc=rc)) then
+     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+         line=__LINE__, &
+         file=__FILE__)) &
+         return  ! bail out
+
+     ! turn off the alarm
+     call ESMF_AlarmRingerOff(restart_alarm, rc=rc )
+     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+         line=__LINE__, &
+         file=__FILE__)) &
+         return  ! bail out
+
      call ESMF_ClockGetNextTime(clock, MyTime, rc=rc)
      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -2012,7 +2011,7 @@ subroutine ModelSetRunClock(gcomp, rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=__FILE__)) return
 
-        ! If restart_option is set then must also have set either restart_n or restart_ymd
+        ! If restart_n is set and non-zero, then restart_option must be available from config
         if (isPresent .and. isSet) then
           call ESMF_LogWrite(subname//" Restart_n = "//trim(cvalue), ESMF_LOGMSG_INFO, rc=rc)
           read(cvalue,*) restart_n
@@ -2025,8 +2024,14 @@ subroutine ModelSetRunClock(gcomp, rc)
               read(cvalue,*) restart_option
               call ESMF_LogWrite(subname//" Restart_option = "//restart_option, &
                    ESMF_LOGMSG_INFO, rc=rc)
+            else
+              call ESMF_LogSetError(ESMF_RC_VAL_WRONG, &
+                   msg=subname//": ERROR both restart_n and restart_option must be set ",  &
+                   line=__LINE__, file=__FILE__, rcToReturn=rc)
+              return
             endif
-
+        
+            ! not used in nems
             call NUOPC_CompAttributeGet(gcomp, name="restart_ymd", value=cvalue, &
                  isPresent=isPresent, isSet=isSet, rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -2036,9 +2041,14 @@ subroutine ModelSetRunClock(gcomp, rc)
                call ESMF_LogWrite(subname//" Restart_ymd = "//trim(cvalue), ESMF_LOGMSG_INFO, rc=rc)
             endif
           else
+            ! restart_n is zero, restart_mode will be nems 
             restart_mode = 'nems'
-            call ESMF_LogWrite(subname//" Set restart mode to nems", ESMF_LOGMSG_INFO, rc=rc)
+            call ESMF_LogWrite(subname//" Set restart_mode to nems", ESMF_LOGMSG_INFO, rc=rc)
           endif
+        else
+          ! restart_n is not set, restart_mode will be nems 
+          restart_mode = 'nems'
+          call ESMF_LogWrite(subname//" Set restart_mode to nems", ESMF_LOGMSG_INFO, rc=rc)
         endif
      endif
 
