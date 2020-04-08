@@ -170,32 +170,20 @@ subroutine SetServices(gcomp, rc)
 
   ! the NUOPC model component will register the generic methods
   call NUOPC_CompDerive(gcomp, model_routine_SS, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   ! switching to IPD versions
   call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_INITIALIZE, &
     userRoutine=InitializeP0, phase=0, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   ! set entry point for methods that require specific implementation
   call NUOPC_CompSetEntryPoint(gcomp, ESMF_METHOD_INITIALIZE, &
     phaseLabelList=(/"IPDv03p1"/), userRoutine=InitializeAdvertise, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
   call NUOPC_CompSetEntryPoint(gcomp, ESMF_METHOD_INITIALIZE, &
     phaseLabelList=(/"IPDv03p3"/), userRoutine=InitializeRealize, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   !------------------
   ! attach specializing method(s)
@@ -203,36 +191,21 @@ subroutine SetServices(gcomp, rc)
 
   call NUOPC_CompSpecialize(gcomp, specLabel=model_label_DataInitialize, &
     specRoutine=DataInitialize, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   call NUOPC_CompSpecialize(gcomp, specLabel=model_label_Advance, &
     specRoutine=ModelAdvance, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   call ESMF_MethodRemove(gcomp, label=model_label_SetRunClock, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
   call NUOPC_CompSpecialize(gcomp, specLabel=model_label_SetRunClock, &
        specRoutine=ModelSetRunClock, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   call NUOPC_CompSpecialize(gcomp, specLabel=model_label_Finalize, &
     specRoutine=ocean_model_finalize, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
 end subroutine SetServices
 
@@ -265,95 +238,54 @@ subroutine InitializeP0(gcomp, importState, exportState, clock, rc)
   ! Switch to IPDv03 by filtering all other phaseMap entries
   call NUOPC_CompFilterPhaseMap(gcomp, ESMF_METHOD_INITIALIZE, &
        acceptStringList=(/"IPDv03p"/), rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-       line=__LINE__, &
-       file=__FILE__)) &
-       return
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   write_diagnostics = .false.
   call NUOPC_CompAttributeGet(gcomp, name="DumpFields", value=value, &
        isPresent=isPresent, isSet=isSet, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-       line=__LINE__, &
-       file=__FILE__)) &
-       return
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
   if (isPresent .and. isSet) write_diagnostics=(trim(value)=="true")
 
   write(logmsg,*) write_diagnostics
-  call ESMF_LogWrite('MOM_cap:DumpFields = '//trim(logmsg), ESMF_LOGMSG_INFO, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-       line=__LINE__, &
-       file=__FILE__)) &
-       return
+  call ESMF_LogWrite('MOM_cap:DumpFields = '//trim(logmsg), ESMF_LOGMSG_INFO)
 
   overwrite_timeslice = .false.
   call NUOPC_CompAttributeGet(gcomp, name="OverwriteSlice", value=value, &
        isPresent=isPresent, isSet=isSet, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-       line=__LINE__, &
-       file=__FILE__)) &
-       return
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
   if (isPresent .and. isSet) overwrite_timeslice=(trim(value)=="true")
   write(logmsg,*) overwrite_timeslice
-  call ESMF_LogWrite('MOM_cap:OverwriteSlice = '//trim(logmsg), ESMF_LOGMSG_INFO, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-       line=__LINE__, &
-       file=__FILE__)) &
-       return
+  call ESMF_LogWrite('MOM_cap:OverwriteSlice = '//trim(logmsg), ESMF_LOGMSG_INFO)
 
   profile_memory = .false.
   call NUOPC_CompAttributeGet(gcomp, name="ProfileMemory", value=value, &
        isPresent=isPresent, isSet=isSet, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-       line=__LINE__, &
-       file=__FILE__)) &
-       return
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
   if (isPresent .and. isSet) profile_memory=(trim(value)=="true")
   write(logmsg,*) profile_memory
-  call ESMF_LogWrite('MOM_cap:ProfileMemory = '//trim(logmsg), ESMF_LOGMSG_INFO, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-       line=__LINE__, &
-       file=__FILE__)) &
-       return
+  call ESMF_LogWrite('MOM_cap:ProfileMemory = '//trim(logmsg), ESMF_LOGMSG_INFO)
 
   grid_attach_area = .false.
   call NUOPC_CompAttributeGet(gcomp, name="GridAttachArea", value=value, &
        isPresent=isPresent, isSet=isSet, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-       line=__LINE__, &
-       file=__FILE__)) &
-       return
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
   if (isPresent .and. isSet) grid_attach_area=(trim(value)=="true")
   write(logmsg,*) grid_attach_area
-  call ESMF_LogWrite('MOM_cap:GridAttachArea = '//trim(logmsg), ESMF_LOGMSG_INFO, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-       line=__LINE__, &
-       file=__FILE__)) &
-       return
+  call ESMF_LogWrite('MOM_cap:GridAttachArea = '//trim(logmsg), ESMF_LOGMSG_INFO)
 
   scalar_field_name = ""
   call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldName", value=value, &
        isPresent=isPresent, isSet=isSet, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-       line=__LINE__, &
-       file=__FILE__)) &
-       return
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
   if (isPresent .and. isSet) then
      scalar_field_name = trim(value)
-     call ESMF_LogWrite('MOM_cap:ScalarFieldName = '//trim(scalar_field_name), ESMF_LOGMSG_INFO, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return
+     call ESMF_LogWrite('MOM_cap:ScalarFieldName = '//trim(scalar_field_name), ESMF_LOGMSG_INFO)
   endif
 
   scalar_field_count = 0
   call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldCount", value=value, &
        isPresent=isPresent, isSet=isSet, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-       line=__LINE__, &
-       file=__FILE__)) &
-       return
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
   if (isPresent .and. isSet) then
      read(value, '(i)', iostat=iostat) scalar_field_count
      if (iostat /= 0) then
@@ -363,20 +295,13 @@ subroutine InitializeP0(gcomp, importState, exportState, clock, rc)
        return
      endif
      write(logmsg,*) scalar_field_count
-     call ESMF_LogWrite('MOM_cap:ScalarFieldCount = '//trim(logmsg), ESMF_LOGMSG_INFO, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     call ESMF_LogWrite('MOM_cap:ScalarFieldCount = '//trim(logmsg), ESMF_LOGMSG_INFO)
   endif
 
   scalar_field_idx_grid_nx = 0
   call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldIdxGridNX", value=value, &
        isPresent=isPresent, isSet=isSet, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-       line=__LINE__, &
-       file=__FILE__)) &
-       return
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
   if (isPresent .and. isSet) then
      read(value, '(i)', iostat=iostat) scalar_field_idx_grid_nx
      if (iostat /= 0) then
@@ -386,20 +311,13 @@ subroutine InitializeP0(gcomp, importState, exportState, clock, rc)
         return
      endif
      write(logmsg,*) scalar_field_idx_grid_nx
-     call ESMF_LogWrite('MOM_cap:ScalarFieldIdxGridNX = '//trim(logmsg), ESMF_LOGMSG_INFO, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     call ESMF_LogWrite('MOM_cap:ScalarFieldIdxGridNX = '//trim(logmsg), ESMF_LOGMSG_INFO)
   endif
 
   scalar_field_idx_grid_ny = 0
   call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldIdxGridNY", value=value, &
        isPresent=isPresent, isSet=isSet, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-       line=__LINE__, &
-       file=__FILE__)) &
-       return
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
   if (isPresent .and. isSet) then
      read(value, '(i)', iostat=iostat) scalar_field_idx_grid_ny
      if (iostat /= 0) then
@@ -409,11 +327,7 @@ subroutine InitializeP0(gcomp, importState, exportState, clock, rc)
         return
      endif
      write(logmsg,*) scalar_field_idx_grid_ny
-     call ESMF_LogWrite('MOM_cap:ScalarFieldIdxGridNY = '//trim(logmsg), ESMF_LOGMSG_INFO, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return
+     call ESMF_LogWrite('MOM_cap:ScalarFieldIdxGridNY = '//trim(logmsg), ESMF_LOGMSG_INFO)
   endif
 
 end subroutine
@@ -472,11 +386,7 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
 
   rc = ESMF_SUCCESS
 
-  call ESMF_LogWrite(subname//' enter', ESMF_LOGMSG_INFO, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-       line=__LINE__, &
-       file=__FILE__)) &
-       return
+  call ESMF_LogWrite(subname//' enter', ESMF_LOGMSG_INFO)
 
   allocate(Ice_ocean_boundary)
   !allocate(ocean_state) ! ocean_model_init allocate this pointer
@@ -487,34 +397,19 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
   ocean_internalstate%ptr%ocean_state_type_ptr        => ocean_state
 
   call ESMF_VMGetCurrent(vm, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   call ESMF_VMGet(VM, mpiCommunicator=mpi_comm_mom, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   call ESMF_ClockGet(CLOCK, currTIME=MyTime, TimeStep=TINT,  RC=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   call ESMF_TimeGet (MyTime, YY=YEAR, MM=MONTH, DD=DAY, H=HOUR, M=MINUTE, S=SECOND, RC=rc )
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   CALL ESMF_TimeIntervalGet(TINT, S=DT_OCEAN, RC=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   call fms_init(mpi_comm_mom)
   call constants_init
@@ -524,10 +419,7 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
   if (cesm_coupled) then
      call NUOPC_CompAttributeGet(gcomp, name="calendar", value=cvalue, &
           isPresent=isPresent, isSet=isSet, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
      if (isPresent .and. isSet) then
         read(cvalue,*) calendar
         select case (trim(calendar))
@@ -561,16 +453,10 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
 
   ! get start/reference time
   call ESMF_ClockGet(CLOCK, refTime=MyTime, RC=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   call ESMF_TimeGet (MyTime, YY=YEAR, MM=MONTH, DD=DAY, H=HOUR, M=MINUTE, S=SECOND, RC=rc )
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   time0 = set_date (YEAR,MONTH,DAY,HOUR,MINUTE,SECOND)
 
@@ -586,28 +472,16 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
   if (is_root_pe()) then
      call NUOPC_CompAttributeGet(gcomp, name="diro", &
           isPresent=isPresentDiro, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
      call NUOPC_CompAttributeGet(gcomp, name="logfile", &
           isPresent=isPresentLogfile, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
      if (isPresentDiro .and. isPresentLogfile) then
           call NUOPC_CompAttributeGet(gcomp, name="diro", value=diro, rc=rc)
-          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-              line=__LINE__, &
-              file=__FILE__)) &
-              return
+          if (ChkErr(rc,__LINE__,u_FILE_u)) return
           call NUOPC_CompAttributeGet(gcomp, name="logfile", value=logfile, rc=rc)
-          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-              line=__LINE__, &
-              file=__FILE__)) &
-              return
-        open(newunit=logunit,file=trim(diro)//"/"//trim(logfile))
+          if (ChkErr(rc,__LINE__,u_FILE_u)) return
+          open(newunit=logunit,file=trim(diro)//"/"//trim(logfile))
      else
         logunit = output_unit
      endif
@@ -618,19 +492,12 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
   starttype = ""
   call NUOPC_CompAttributeGet(gcomp, name='start_type', value=cvalue, &
        isPresent=isPresent, isSet=isSet, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-       line=__LINE__, &
-       file=__FILE__)) &
-       return
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
   if (isPresent .and. isSet) then
      read(cvalue,*) starttype
   else
      call ESMF_LogWrite('MOM_cap:start_type unset - using input.nml for restart option', &
-          ESMF_LOGMSG_INFO, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+          ESMF_LOGMSG_INFO)
   endif
 
   runtype = ""
@@ -648,11 +515,7 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
   endif
 
   if (len_trim(runtype) > 0) then
-     call ESMF_LogWrite('MOM_cap:startup = '//trim(runtype), ESMF_LOGMSG_INFO, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     call ESMF_LogWrite('MOM_cap:startup = '//trim(runtype), ESMF_LOGMSG_INFO)
   endif
 
   restartfile = ""
@@ -660,6 +523,7 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
 
      restartfile = "n"
 
+<<<<<<< HEAD
   else if (runtype == "continue") then ! hybrid or branch or continuos runs
 
      if (cesm_coupled) then
@@ -691,6 +555,29 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
       else
          call ESMF_LogWrite('MOM_cap: restart requested, use input.nml', ESMF_LOGMSG_WARNING)
        endif
+=======
+     ! optionally call into system-specific implementation to get restart file name
+     call ESMF_MethodExecute(gcomp, label="GetRestartFileToRead", &
+          existflag=existflag, userRc=userRc, rc=rc)
+     if (ESMF_LogFoundError(rcToCheck=rc, msg="Error executing user method to get restart filename", &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+     if (ESMF_LogFoundError(rcToCheck=userRc, msg="Error in method to get restart filename", &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+     if (existflag) then
+        call ESMF_LogWrite('MOM_cap: called user GetRestartFileToRead', ESMF_LOGMSG_INFO)
+     endif
+
+     call NUOPC_CompAttributeGet(gcomp, name='RestartFileToRead', &
+          value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
+     if (isPresent .and. isSet) then
+        restartfile = trim(cvalue)
+        call ESMF_LogWrite('MOM_cap: RestartFileToRead = '//trim(restartfile), ESMF_LOGMSG_INFO)
+     else
+        call ESMF_LogWrite('MOM_cap: restart requested, no RestartFileToRead attribute provided-will use input.nml',&
+             ESMF_LOGMSG_WARNING)
+     endif
+>>>>>>> origin/feature/logcleanup
 
   endif
 
@@ -745,10 +632,7 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
 
   ocean_internalstate%ptr%ocean_state_type_ptr => ocean_state
   call ESMF_GridCompSetInternalState(gcomp, ocean_internalstate, rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   if (len_trim(scalar_field_name) > 0) then
    call fld_list_add(fldsToOcn_num, fldsToOcn, trim(scalar_field_name), "will_provide")
@@ -803,18 +687,12 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
 
   do n = 1,fldsToOcn_num
     call NUOPC_Advertise(importState, standardName=fldsToOcn(n)%stdname, name=fldsToOcn(n)%shortname, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
   enddo
 
   do n = 1,fldsFrOcn_num
     call NUOPC_Advertise(exportState, standardName=fldsFrOcn(n)%stdname, name=fldsFrOcn(n)%shortname, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
   enddo
 
 end subroutine InitializeAdvertise
@@ -898,10 +776,7 @@ subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
   !----------------------------------------------------------------------------
 
   call ESMF_GridCompGetInternalState(gcomp, ocean_internalstate, rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   Ice_ocean_boundary => ocean_internalstate%ptr%ice_ocean_boundary_type_ptr
   ocean_public       => ocean_internalstate%ptr%ocean_public_type_ptr
@@ -912,16 +787,10 @@ subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
   !----------------------------------------------------------------------------
 
   call ESMF_VMGetCurrent(vm, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   call ESMF_VMGet(vm, petCount=npet, mpiCommunicator=mpicom, localPet=localPet, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   !---------------------------------
   ! global mom grid size
@@ -929,11 +798,7 @@ subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
 
   call mpp_get_global_domain(ocean_public%domain, xsize=nxg, ysize=nyg)
   write(tmpstr,'(a,2i6)') subname//' nxg,nyg = ',nxg,nyg
-  call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-       line=__LINE__, &
-       file=__FILE__)) &
-       return  ! bail out
+  call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
 
   !---------------------------------
   ! number of tiles per PET, assumed to be 1, and number of pes (tiles) total
@@ -942,19 +807,11 @@ subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
   ntiles=mpp_get_ntile_count(ocean_public%domain) ! this is tiles on this pe
   if (ntiles /= 1) then
     rc = ESMF_FAILURE
-    call ESMF_LogWrite(subname//' ntiles must be 1', ESMF_LOGMSG_ERROR, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return
+    call ESMF_LogWrite(subname//' ntiles must be 1', ESMF_LOGMSG_ERROR)
   endif
   ntiles=mpp_get_domain_npes(ocean_public%domain)
   write(tmpstr,'(a,1i6)') subname//' ntiles = ',ntiles
-  call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-       line=__LINE__, &
-       file=__FILE__)) &
-       return
+  call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
 
   !---------------------------------
   ! get start and end indices of each tile and their PET
@@ -966,11 +823,7 @@ subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
   if (debug > 0) then
      do n = 1,ntiles
         write(tmpstr,'(a,6i6)') subname//' tiles ',n,pe(n),xb(n),xe(n),yb(n),ye(n)
-        call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-            line=__LINE__, &
-            file=__FILE__)) &
-            return
+        call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
      enddo
   endif
 
@@ -1003,23 +856,14 @@ subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
      enddo
 
      DistGrid = ESMF_DistGridCreate(arbSeqIndexList=gindex, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      ! read in the mesh
      call NUOPC_CompAttributeGet(gcomp, name='mesh_ocn', value=cvalue, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      EMeshTemp = ESMF_MeshCreate(filename=trim(cvalue), fileformat=ESMF_FILEFORMAT_ESMFMESH, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      if (localPet == 0) then
         write(logunit,*)'mesh file for mom6 domain is ',trim(cvalue)
@@ -1027,17 +871,11 @@ subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
 
      ! recreate the mesh using the above distGrid
      EMesh = ESMF_MeshCreate(EMeshTemp, elementDistgrid=Distgrid, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      ! Check for consistency of lat, lon and mask between mesh and mom6 grid
      call ESMF_MeshGet(Emesh, spatialDim=spatialDim, numOwnedElements=numOwnedElements, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      allocate(ownedElemCoords(spatialDim*numOwnedElements))
      allocate(lonMesh(numOwnedElements), lon(numOwnedElements))
@@ -1045,25 +883,16 @@ subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
      allocate(maskMesh(numOwnedElements), mask(numOwnedElements))
 
      call ESMF_MeshGet(Emesh, ownedElemCoords=ownedElemCoords, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
      do n = 1,numOwnedElements
         lonMesh(n) = ownedElemCoords(2*n-1)
         latMesh(n) = ownedElemCoords(2*n)
      end do
 
      elemMaskArray = ESMF_ArrayCreate(Distgrid, maskMesh, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
      call ESMF_MeshGet(Emesh, elemMaskArray=elemMaskArray, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      call mpp_get_compute_domain(ocean_public%domain, isc, iec, jsc, jec)
      n = 0
@@ -1110,16 +939,10 @@ subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
      deallocate(maskMesh, mask)
      ! realize the import and export fields using the mesh
      call MOM_RealizeFields(importState, fldsToOcn_num, fldsToOcn, "Ocn import", mesh=Emesh, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      call MOM_RealizeFields(exportState, fldsFrOcn_num, fldsFrOcn, "Ocn export", mesh=Emesh, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   else if (geomtype == ESMF_GEOMTYPE_GRID) then
 
@@ -1141,19 +964,16 @@ subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
        deBlockList(2,2,n) = ye(n)
        petMap(n) = pe(n)
        ! write(tmpstr,'(a,3i8)') subname//' iglo = ',n,deBlockList(1,1,n),deBlockList(1,2,n)
-       ! call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
+       ! call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
        ! write(tmpstr,'(a,3i8)') subname//' jglo = ',n,deBlockList(2,1,n),deBlockList(2,2,n)
-       ! call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
+       ! call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
        ! write(tmpstr,'(a,2i8)') subname//' pe  = ',n,petMap(n)
-       ! call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
+       ! call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
        !--- assume a tile with starting index of 1 has an equivalent wraparound tile on the other side
      enddo
 
      delayout = ESMF_DELayoutCreate(petMap, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return  ! bail out
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      ! rsd this assumes tripole grid, but sometimes in CESM a bipole
      ! grid is used -- need to introduce conditional logic here
@@ -1164,18 +984,12 @@ subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
      call ESMF_DistGridConnectionSet(connectionList(1), tileIndexA=1, &
           tileIndexB=1, positionVector=(/nxg+1, 2*nyg+1/), &
           orientationVector=(/-1, -2/), rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return  ! bail out
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      ! periodic boundary condition along first dimension
      call ESMF_DistGridConnectionSet(connectionList(2), tileIndexA=1, &
           tileIndexB=1, positionVector=(/nxg, 0/), rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/nxg,nyg/), &
           !        indexflag = ESMF_INDEX_DELOCAL, &
@@ -1184,10 +998,7 @@ subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
           delayout=delayout, &
           connectionList=connectionList, &
           rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      deallocate(xb,xe,yb,ye,pe)
      deallocate(connectionList)
@@ -1196,32 +1007,18 @@ subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
      deallocate(petMap)
 
      call ESMF_DistGridGet(distgrid=distgrid, localDE=0, elementCount=cnt, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      allocate(indexList(cnt))
      write(tmpstr,'(a,i8)') subname//' distgrid cnt= ',cnt
-     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
 
      call ESMF_DistGridGet(distgrid=distgrid, localDE=0, seqIndexList=indexList, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      write(tmpstr,'(a,4i8)') subname//' distgrid list= ',&
           indexList(1),indexList(cnt),minval(indexList), maxval(indexList)
-     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
 
      deallocate(IndexList)
 
@@ -1231,91 +1028,55 @@ subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
           gridEdgeLWidth=(/0,0/), gridEdgeUWidth=(/0,1/), &
           coordSys = ESMF_COORDSYS_SPH_DEG, &
           rc = rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
-
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      call ESMF_GridAddCoord(gridIn, staggerLoc=ESMF_STAGGERLOC_CENTER, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      call ESMF_GridAddCoord(gridIn, staggerLoc=ESMF_STAGGERLOC_CORNER, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      call ESMF_GridAddItem(gridIn, itemFlag=ESMF_GRIDITEM_MASK, itemTypeKind=ESMF_TYPEKIND_I4, &
           staggerLoc=ESMF_STAGGERLOC_CENTER, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      ! Attach area to the Grid optionally. By default the cell areas are computed.
      if(grid_attach_area) then
         call ESMF_GridAddItem(gridIn, itemFlag=ESMF_GRIDITEM_AREA, itemTypeKind=ESMF_TYPEKIND_R8, &
              staggerLoc=ESMF_STAGGERLOC_CENTER, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-           line=__LINE__, &
-           file=__FILE__)) &
-           return
-
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
      endif
 
      call ESMF_GridGetCoord(gridIn, coordDim=1, &
           staggerloc=ESMF_STAGGERLOC_CENTER, &
           farrayPtr=dataPtr_xcen, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      call ESMF_GridGetCoord(gridIn, coordDim=2, &
           staggerloc=ESMF_STAGGERLOC_CENTER, &
           farrayPtr=dataPtr_ycen, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
-
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      call ESMF_GridGetCoord(gridIn, coordDim=1, &
           staggerloc=ESMF_STAGGERLOC_CORNER, &
           farrayPtr=dataPtr_xcor, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      call ESMF_GridGetCoord(gridIn, coordDim=2, &
           staggerloc=ESMF_STAGGERLOC_CORNER, &
           farrayPtr=dataPtr_ycor, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      call ESMF_GridGetItem(gridIn, itemflag=ESMF_GRIDITEM_MASK, &
           staggerloc=ESMF_STAGGERLOC_CENTER, &
           farrayPtr=dataPtr_mask, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      if(grid_attach_area) then
        call ESMF_GridGetItem(gridIn, itemflag=ESMF_GRIDITEM_AREA, &
              staggerloc=ESMF_STAGGERLOC_CENTER, &
              farrayPtr=dataPtr_area, rc=rc)
-       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
      endif
 
      ! load up area, mask, center and corner values
@@ -1338,13 +1099,13 @@ subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
      ubnd4 = ubound(dataPtr_xcor,2)
 
      write(tmpstr,*) subname//' iscjsc = ',isc,iec,jsc,jec
-     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
+     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
 
      write(tmpstr,*) subname//' lbub12 = ',lbnd1,ubnd1,lbnd2,ubnd2
-     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
+     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
 
      write(tmpstr,*) subname//' lbub34 = ',lbnd3,ubnd3,lbnd4,ubnd4
-     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
+     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
 
      if (iec-isc /= ubnd1-lbnd1 .or. jec-jsc /= ubnd2-lbnd2) then
         call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
@@ -1383,38 +1144,32 @@ subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
      enddo
 
      write(tmpstr,*) subname//' mask = ',minval(dataPtr_mask),maxval(dataPtr_mask)
-     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
+     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
 
      if(grid_attach_area) then
         write(tmpstr,*) subname//' area = ',minval(dataPtr_area),maxval(dataPtr_area)
-        call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
+        call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
      endif
 
      write(tmpstr,*) subname//' xcen = ',minval(dataPtr_xcen),maxval(dataPtr_xcen)
-     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
+     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
 
      write(tmpstr,*) subname//' ycen = ',minval(dataPtr_ycen),maxval(dataPtr_ycen)
-     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
+     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
 
      write(tmpstr,*) subname//' xcor = ',minval(dataPtr_xcor),maxval(dataPtr_xcor)
-     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
+     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
 
      write(tmpstr,*) subname//' ycor = ',minval(dataPtr_ycor),maxval(dataPtr_ycor)
-     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=rc)
+     call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
 
      gridOut = gridIn ! for now out same as in
 
      call MOM_RealizeFields(importState, fldsToOcn_num, fldsToOcn, "Ocn import", grid=gridIn, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      call MOM_RealizeFields(exportState, fldsFrOcn_num, fldsFrOcn, "Ocn export", grid=gridOut, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   endif
 
@@ -1425,18 +1180,11 @@ subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
   if (len_trim(scalar_field_name) > 0) then
      call State_SetScalar(dble(nxg),scalar_field_idx_grid_nx, exportState, localPet, &
          scalar_field_name, scalar_field_count, rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      call State_SetScalar(dble(nyg),scalar_field_idx_grid_ny, exportState, localPet, &
           scalar_field_name, scalar_field_count, rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return
-
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
   endif
 
   !---------------------------------
@@ -1450,10 +1198,7 @@ subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
 
   !call NUOPC_Write(exportState, fileNamePrefix='post_realize_field_ocn_export_', &
   !     timeslice=1, relaxedFlag=.true., rc=rc)
-  !if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-  !     line=__LINE__, &
-  !     file=__FILE__)) &
-  !     return  ! bail out
+  !if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
 end subroutine InitializeRealize
 
@@ -1487,10 +1232,7 @@ subroutine DataInitialize(gcomp, rc)
 
   ! query the Component for its clock, importState and exportState
   call ESMF_GridCompGet(gcomp, clock=clock, importState=importState, exportState=exportState, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   call ESMF_ClockGet(clock, currTime=currTime, timeStep=timeStep, rc=rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
@@ -1498,10 +1240,7 @@ subroutine DataInitialize(gcomp, rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 
   call ESMF_GridCompGetInternalState(gcomp, ocean_internalstate, rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   Ice_ocean_boundary => ocean_internalstate%ptr%ice_ocean_boundary_type_ptr
   ocean_public       => ocean_internalstate%ptr%ocean_public_type_ptr
@@ -1509,42 +1248,28 @@ subroutine DataInitialize(gcomp, rc)
   call get_ocean_grid(ocean_state, ocean_grid)
 
   call mom_export(ocean_public, ocean_grid, ocean_state, exportState, clock, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   call ESMF_StateGet(exportState, itemCount=fieldCount, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   allocate(fieldNameList(fieldCount))
   call ESMF_StateGet(exportState, itemNameList=fieldNameList, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   do n=1, fieldCount
     call ESMF_StateGet(exportState, itemName=fieldNameList(n), field=field, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     call NUOPC_SetAttribute(field, name="Updated", value="true", rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
   enddo
   deallocate(fieldNameList)
 
   ! check whether all Fields in the exportState are "Updated"
   if (NUOPC_IsUpdated(exportState)) then
     call NUOPC_CompAttributeSet(gcomp, name="InitializeDataComplete", value="true", rc=rc)
+<<<<<<< HEAD
     call ESMF_LogWrite("MOM6 - Initialize-Data-Dependency SATISFIED!!!", ESMF_LOGMSG_INFO, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -1567,6 +1292,16 @@ subroutine DataInitialize(gcomp, rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
       endif
      enddo
+=======
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    call ESMF_LogWrite("MOM6 - Initialize-Data-Dependency SATISFIED!!!", ESMF_LOGMSG_INFO)
+  endif
+
+  if(write_diagnostics) then
+    call NUOPC_Write(exportState, fileNamePrefix='field_init_ocn_export_', &
+      overwrite=overwrite_timeslice,timeslice=import_slice, relaxedFlag=.true., rc=rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+>>>>>>> origin/feature/logcleanup
   endif
 
 end subroutine DataInitialize
@@ -1626,43 +1361,23 @@ subroutine ModelAdvance(gcomp, rc)
   ! query the Component for its clock, importState and exportState
   call ESMF_GridCompGet(gcomp, clock=clock, importState=importState, &
     exportState=exportState, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   ! HERE THE MODEL ADVANCES: currTime -> currTime + timeStep
 
   call ESMF_ClockPrint(clock, options="currTime", &
     preString="------>Advancing OCN from: ", unit=msgString, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
-  call ESMF_LogWrite(subname//trim(msgString), ESMF_LOGMSG_INFO, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
+  call ESMF_LogWrite(subname//trim(msgString), ESMF_LOGMSG_INFO)
 
   call ESMF_ClockGet(clock, startTime=startTime, currTime=currTime, &
     timeStep=timeStep, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   call ESMF_TimePrint(currTime + timeStep, &
     preString="--------------------------------> to: ", unit=msgString, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
-  call ESMF_LogWrite(trim(msgString), ESMF_LOGMSG_INFO, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
+  call ESMF_LogWrite(trim(msgString), ESMF_LOGMSG_INFO)
 
   call ESMF_TimeGet(currTime,          timestring=import_timestr, rc=rc)
   call ESMF_TimeGet(currTime+timestep, timestring=export_timestr, rc=rc)
@@ -1679,11 +1394,7 @@ subroutine ModelAdvance(gcomp, rc)
 
       ! Do not call MOM6 timestepping routine if the first cpl tstep of a startup run
       if (currTime == startTime) then
-        call ESMF_LogWrite("MOM6 - Skipping the first coupling timestep", ESMF_LOGMSG_INFO, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
+        call ESMF_LogWrite("MOM6 - Skipping the first coupling timestep", ESMF_LOGMSG_INFO)
         do_advance = .false.
       else
         do_advance = .true.
@@ -1692,18 +1403,10 @@ subroutine ModelAdvance(gcomp, rc)
       if (do_advance) then
          ! If the second cpl tstep of a startup run, step back a cpl tstep and advance for two cpl tsteps
          if (currTime == startTime + timeStep) then
-            call ESMF_LogWrite("MOM6 - Stepping back one coupling timestep", ESMF_LOGMSG_INFO, rc=rc)
-            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-                 line=__LINE__, &
-                 file=__FILE__)) &
-                 return  ! bail out
+            call ESMF_LogWrite("MOM6 - Stepping back one coupling timestep", ESMF_LOGMSG_INFO)
             Time = esmf2fms_time(currTime-timeStep) ! i.e., startTime
 
-            call ESMF_LogWrite("MOM6 - doubling the coupling timestep", ESMF_LOGMSG_INFO, rc=rc)
-            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-                 line=__LINE__, &
-                 file=__FILE__)) &
-                 return  ! bail out
+            call ESMF_LogWrite("MOM6 - doubling the coupling timestep", ESMF_LOGMSG_INFO)
             Time_step_coupled = 2 * esmf2fms_time(timeStep)
          endif
       end if
@@ -1714,10 +1417,7 @@ subroutine ModelAdvance(gcomp, rc)
   if (do_advance) then
 
      call ESMF_GridCompGetInternalState(gcomp, ocean_internalstate, rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      Ice_ocean_boundary => ocean_internalstate%ptr%ice_ocean_boundary_type_ptr
      ocean_public       => ocean_internalstate%ptr%ocean_public_type_ptr
@@ -1728,6 +1428,7 @@ subroutine ModelAdvance(gcomp, rc)
      !---------------
 
      if (write_diagnostics) then
+<<<<<<< HEAD
      do n = 1,fldsToOcn_num
       fldname = fldsToOcn(n)%shortname
       call ESMF_StateGet(importState, itemName=trim(fldname), itemType=itemType, rc=rc)
@@ -1742,6 +1443,12 @@ subroutine ModelAdvance(gcomp, rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
       endif
      enddo
+=======
+        call NUOPC_Write(importState, fileNamePrefix='field_ocn_import_', &
+             overwrite=overwrite_timeslice,timeslice=import_slice, relaxedFlag=.true., rc=rc)
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
+        import_slice = import_slice + 1
+>>>>>>> origin/feature/logcleanup
      endif
 
      !---------------
@@ -1755,10 +1462,7 @@ subroutine ModelAdvance(gcomp, rc)
      !---------------
 
      call mom_import(ocean_public, ocean_grid, importState, ice_ocean_boundary, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      !---------------
      ! Update MOM6
@@ -1773,10 +1477,7 @@ subroutine ModelAdvance(gcomp, rc)
      !---------------
 
      call mom_export(ocean_public, ocean_grid, ocean_state, exportState, clock, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   endif
 
@@ -1784,6 +1485,7 @@ subroutine ModelAdvance(gcomp, rc)
   ! Get the stop alarm
   !---------------
 
+<<<<<<< HEAD
    call ESMF_ClockGetAlarm(clock, alarmname='stop_alarm', alarm=stop_alarm, rc=rc)
    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
        line=__LINE__, &
@@ -1855,6 +1557,64 @@ subroutine ModelAdvance(gcomp, rc)
         endif
      end if
      call ESMF_LogWrite("MOM_cap: Writing restart :  "//trim(restartname), ESMF_LOGMSG_INFO, rc=rc)
+=======
+  call ESMF_ClockGetAlarm(clock, alarmname='alarm_restart', alarm=alarm, rc=rc)
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+  if (ESMF_AlarmIsRinging(alarm, rc=rc)) then
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+     call ESMF_AlarmRingerOff(alarm, rc=rc )
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+     ! call into system specific method to get desired restart filename
+     restartname = ""
+     call ESMF_MethodExecute(gcomp, label="GetRestartFileToWrite", &
+          existflag=existflag, userRc=userRc, rc=rc)
+     if (ESMF_LogFoundError(rcToCheck=rc, msg="Error executing user method to get restart filename", &
+         line=__LINE__, file=__FILE__)) return  ! bail out
+
+     if (ESMF_LogFoundError(rcToCheck=userRc, msg="Error in method to get restart filename", &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+     if (existflag) then
+        call ESMF_LogWrite("MOM_cap: called user GetRestartFileToWrite method", ESMF_LOGMSG_INFO)
+        call NUOPC_CompAttributeGet(gcomp, name='RestartFileToWrite', &
+             isPresent=isPresent, isSet=isSet, value=cvalue, rc=rc)
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
+        if (isPresent .and. isSet) then
+           restartname = trim(cvalue)
+           call ESMF_LogWrite("MOM_cap: User RestartFileToWrite: "//trim(restartname), ESMF_LOGMSG_INFO)
+        endif
+     endif
+
+     if (len_trim(restartname) == 0) then
+        ! none provided, so use a default restart filename
+        call ESMF_ClockGetNextTime(clock, MyTime, rc=rc)
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
+        call ESMF_TimeGet (MyTime, yy=year, mm=month, dd=day, &
+             h=hour, m=minute, s=seconds, rc=rc )
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
+        write(restartname,'(A,".mom6.r.",I4.4,"-",I2.2,"-",I2.2,"-",I2.2,"-",I2.2,"-",I2.2)') &
+              "ocn", year, month, day, hour, minute, seconds
+        call ESMF_LogWrite("MOM_cap: Using default restart filename:  "//trim(restartname), ESMF_LOGMSG_INFO)
+     endif
+
+     ! TODO: address if this requirement is being met for the DA group
+     ! Optionally write restart files when currTime-startTime is integer multiples of restart_interval
+     ! if (restart_interval > 0 ) then
+     !   time_elapsed = currTime - startTime
+     !   call ESMF_TimeIntervalGet(time_elapsed, s_i8=time_elapsed_sec, rc=rc)
+     !   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+     !   n_interval = time_elapsed_sec / restart_interval
+     !   if ((n_interval .gt. 0) .and. (n_interval*restart_interval == time_elapsed_sec)) then
+     !       time_restart_current = esmf2fms_time(currTime)
+     !       timestamp = date_to_string(time_restart_current)
+     !       call ESMF_LogWrite("MOM: Writing restart at "//trim(timestamp), ESMF_LOGMSG_INFO)
+     !       write(*,*) 'calling ocean_model_restart'
+     !       call ocean_model_restart(ocean_state, timestamp)
+     !   endif
+     ! endif
+>>>>>>> origin/feature/logcleanup
 
      ! write restart file(s)
      call ocean_model_restart(ocean_state, restartname=restartname)
@@ -1870,6 +1630,7 @@ subroutine ModelAdvance(gcomp, rc)
   !---------------
 
   if (write_diagnostics) then
+<<<<<<< HEAD
      do n = 1,fldsFrOcn_num
       fldname = fldsFrOcn(n)%shortname
       call ESMF_StateGet(exportState, itemName=trim(fldname), itemType=itemType, rc=rc)
@@ -1884,6 +1645,12 @@ subroutine ModelAdvance(gcomp, rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
       endif
      enddo
+=======
+     call NUOPC_Write(exportState, fileNamePrefix='field_ocn_export_', &
+          overwrite=overwrite_timeslice,timeslice=export_slice, relaxedFlag=.true., rc=rc)
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
+     export_slice = export_slice + 1
+>>>>>>> origin/feature/logcleanup
   endif
 
   if(profile_memory) call ESMF_VMLogMemInfo("Leaving MOM Model_ADVANCE: ")
@@ -1917,23 +1684,22 @@ subroutine ModelSetRunClock(gcomp, rc)
 
   ! query the Component for its clock, importState and exportState
   call NUOPC_ModelGet(gcomp, driverClock=dclock, modelClock=mclock, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
+<<<<<<< HEAD
   call ESMF_ClockGet(dclock, currTime=dcurrtime, timeStep=dtimestep, &
                      stopTime=dstoptime, rc=rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
     line=__LINE__, &
     file=__FILE__)) &
     return  ! bail out
+=======
+  call ESMF_ClockGet(dclock, currTime=dcurrtime, timeStep=dtimestep, rc=rc)
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
+>>>>>>> origin/feature/logcleanup
 
   call ESMF_ClockGet(mclock, currTime=mcurrtime, timeStep=mtimestep, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   !--------------------------------
   ! check that the current time in the model and driver are the same
@@ -1941,16 +1707,10 @@ subroutine ModelSetRunClock(gcomp, rc)
 
   if (mcurrtime /= dcurrtime) then
     call ESMF_TimeGet(dcurrtime, timeString=dtimestring, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     call ESMF_TimeGet(mcurrtime, timeString=mtimestring, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     call ESMF_LogSetError(ESMF_RC_VAL_WRONG, &
          msg=subname//": ERROR in time consistency: "//trim(dtimestring)//" != "//trim(mtimestring),  &
@@ -1965,10 +1725,7 @@ subroutine ModelSetRunClock(gcomp, rc)
   mstoptime = mcurrtime + dtimestep
 
   call ESMF_ClockSet(mclock, currTime=dcurrtime, timeStep=dtimestep, stopTime=mstoptime, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   if (first_time) then
      !--------------------------------
@@ -1979,6 +1736,7 @@ subroutine ModelSetRunClock(gcomp, rc)
      restart_n = 0
      restart_ymd = 0
 
+<<<<<<< HEAD
      if (cesm_coupled) then
 
         call NUOPC_CompAttributeGet(gcomp, name="restart_option", value=restart_option, rc=rc)
@@ -1988,12 +1746,25 @@ subroutine ModelSetRunClock(gcomp, rc)
         call NUOPC_CompAttributeGet(gcomp, name="restart_n", value=cvalue, &
                 isPresent=isPresent, isSet=isSet, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
+=======
+     call NUOPC_CompAttributeGet(gcomp, name="restart_option", isPresent=isPresent, &
+          isSet=isSet, value=restart_option, rc=rc)
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
+     if (isPresent .and. isSet) then
+        call NUOPC_CompAttributeGet(gcomp,  name="restart_n", value=cvalue, &
+             isPresent=isPresent, isSet=isSet, rc=rc)
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
+>>>>>>> origin/feature/logcleanup
         if (isPresent .and. isSet) then
            read(cvalue,*) restart_n
         endif
         call NUOPC_CompAttributeGet(gcomp, name="restart_ymd", value=cvalue, &
              isPresent=isPresent, isSet=isSet, rc=rc)
+<<<<<<< HEAD
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
+=======
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
+>>>>>>> origin/feature/logcleanup
         if (isPresent .and. isSet) then
            read(cvalue,*) restart_ymd
         endif
@@ -2052,6 +1823,7 @@ subroutine ModelSetRunClock(gcomp, rc)
         endif
      endif
 
+<<<<<<< HEAD
      if (restart_mode == 'cmeps') then
         call AlarmInit(mclock, &
              alarm   = restart_alarm,         &
@@ -2083,6 +1855,22 @@ subroutine ModelSetRunClock(gcomp, rc)
      call ESMF_LogWrite("Stop Alarm will ring at : "//trim(timestr), ESMF_LOGMSG_INFO, rc=rc)
 
      first_time = .false.
+=======
+     call AlarmInit(mclock, &
+          alarm   = restart_alarm,         &
+          option  = trim(restart_option),  &
+          opt_n   = restart_n,             &
+          opt_ymd = restart_ymd,           &
+          RefTime = mcurrTime,             &
+          alarmname = 'alarm_restart', rc=rc)
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+     call ESMF_AlarmSet(restart_alarm, clock=mclock, rc=rc)
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
+     first_time = .false.
+
+     call ESMF_LogWrite(subname//" Set restart option = "//restart_option, ESMF_LOGMSG_INFO)
+>>>>>>> origin/feature/logcleanup
 
   endif
 
@@ -2091,19 +1879,12 @@ subroutine ModelSetRunClock(gcomp, rc)
   !--------------------------------
 
   call ESMF_ClockAdvance(mclock,rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   call ESMF_ClockSet(mclock, currTime=dcurrtime, timeStep=dtimestep, stopTime=mstoptime, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
 end subroutine ModelSetRunClock
-
 
 !===============================================================================
 
@@ -2131,25 +1912,16 @@ subroutine ocean_model_finalize(gcomp, rc)
   rc = ESMF_SUCCESS
 
   call ESMF_GridCompGetInternalState(gcomp, ocean_internalstate, rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   ocean_public => ocean_internalstate%ptr%ocean_public_type_ptr
   ocean_state  => ocean_internalstate%ptr%ocean_state_type_ptr
 
   call NUOPC_ModelGet(gcomp, modelClock=clock, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   call ESMF_ClockGet(clock, currTime=currTime, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-    line=__LINE__, &
-    file=__FILE__)) &
-    return  ! bail out
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
   Time = esmf2fms_time(currTime)
 
   ! Do not write a restart unless mode is nems
@@ -2190,16 +1962,15 @@ subroutine State_SetScalar(value, scalar_id, State, mytask, scalar_name, scalar_
   rc = ESMF_SUCCESS
 
   call ESMF_StateGet(State, itemName=trim(scalar_name), field=field, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   if (mytask == 0) then
     call ESMF_FieldGet(field, farrayPtr=farrayptr, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     if (scalar_id < 0 .or. scalar_id > scalar_count) then
        call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
-            msg=subname//": ERROR in scalar_id", &
-            line=__LINE__, file=__FILE__, rcToReturn=rc)
+            msg=subname//": ERROR in scalar_id", line=__LINE__, file=__FILE__, rcToReturn=rc)
        return
     endif
 
@@ -2237,57 +2008,36 @@ subroutine MOM_RealizeFields(state, nfields, field_defs, tag, grid, mesh, rc)
       if (field_defs(i)%shortname == scalar_field_name) then
 
         call ESMF_LogWrite(subname // tag // " Field "// trim(field_defs(i)%stdname) // " is connected on root pe.", &
-          ESMF_LOGMSG_INFO, &
-          line=__LINE__, &
-          file=__FILE__, &
-          rc=rc)
+          ESMF_LOGMSG_INFO)
 
         call SetScalarField(field, rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
       else
 
         call ESMF_LogWrite(subname // tag // " Field "// trim(field_defs(i)%stdname) // " is connected.", &
-          ESMF_LOGMSG_INFO, &
-          line=__LINE__, &
-          file=__FILE__, &
-          rc=rc)
+          ESMF_LOGMSG_INFO)
 
         if (present(grid)) then
 
            field = ESMF_FieldCreate(grid, ESMF_TYPEKIND_R8, indexflag=ESMF_INDEX_DELOCAL, &
                 name=field_defs(i)%shortname, rc=rc)
-           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-                line=__LINE__, &
-                file=__FILE__)) &
-                return  ! bail out
+           if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
            ! initialize fldptr to zero
            call ESMF_FieldGet(field, farrayPtr=fldptr2d, rc=rc)
-           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-                line=__LINE__, &
-                file=__FILE__)) &
-                return  ! bail out
+           if (ChkErr(rc,__LINE__,u_FILE_u)) return
            fldptr2d(:,:) = 0.0
 
         else if (present(mesh)) then
 
            field = ESMF_FieldCreate(mesh=mesh, typekind=ESMF_TYPEKIND_R8, meshloc=ESMF_MESHLOC_ELEMENT, &
                 name=field_defs(i)%shortname, rc=rc)
-           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-                line=__LINE__, &
-                file=__FILE__)) &
-                return  ! bail out
+           if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
            ! initialize fldptr to zero
            call ESMF_FieldGet(field, farrayPtr=fldptr1d, rc=rc)
-           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-                line=__LINE__, &
-                file=__FILE__)) &
-                return  ! bail out
+           if (ChkErr(rc,__LINE__,u_FILE_u)) return
            fldptr1d(:) = 0.0
 
         endif
@@ -2296,24 +2046,16 @@ subroutine MOM_RealizeFields(state, nfields, field_defs, tag, grid, mesh, rc)
 
       ! Realize connected field
       call NUOPC_Realize(state, field=field, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     else ! field is not connected
 
       call ESMF_LogWrite(subname // tag // " Field "// trim(field_defs(i)%stdname) // " is not connected.", &
-        ESMF_LOGMSG_INFO, &
-        line=__LINE__, &
-        file=__FILE__, &
-        rc=rc)
+        ESMF_LOGMSG_INFO)
+
       ! remove a not connected Field from State
       call ESMF_StateRemove(state, (/field_defs(i)%shortname/), rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     endif
 
@@ -2336,24 +2078,15 @@ contains  !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     ! create a DistGrid with a single index space element, which gets mapped onto DE 0.
     distgrid = ESMF_DistGridCreate(minIndex=(/1/), maxIndex=(/1/), rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     grid = ESMF_GridCreate(distgrid, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     ! num of scalar values
     field = ESMF_FieldCreate(name=trim(scalar_field_name), grid=grid, typekind=ESMF_TYPEKIND_R8, &
          ungriddedLBound=(/1/), ungriddedUBound=(/scalar_field_count/), gridToFieldMap=(/2/), rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   end subroutine SetScalarField
 
@@ -2406,6 +2139,18 @@ subroutine shr_file_getLogUnit(nunit)
   ! having cppdefs in the main program
 end subroutine shr_file_getLogUnit
 #endif
+
+logical function chkerr(rc, line, file)
+  integer, intent(in) :: rc
+  integer, intent(in) :: line
+  character(len=*), intent(in) :: file
+  integer :: lrc
+  chkerr = .false.
+  lrc = rc
+  if (ESMF_LogFoundError(rcToCheck=lrc, msg=ESMF_LOGERR_PASSTHRU, line=line, file=file)) then
+     chkerr = .true.
+  endif
+end function chkerr
 
 !>
 !! @page nuopc_cap NUOPC Cap
