@@ -69,6 +69,9 @@ type, public :: wave_parameters_CS ; private
                                       !! approach.
 
   ! Surface Wave Dependent 1d/2d/3d vars
+  integer, public :: NumBands =0 !< Number of wavenumber/frequency partitions to receive
+                               !! This needs to match the number of bands provided
+                               !! via either coupling or file.
   real, allocatable, dimension(:), public :: &
        WaveNum_Cen        !< Wavenumber bands for read/coupled [m-1]
   real, allocatable, dimension(:), public :: &
@@ -139,10 +142,6 @@ integer :: WaveMethod=-99 !< Options for including wave information
                           !! \todo Module variable! Move into a control structure.
 
 ! Options if WaveMethod is Surface Stokes Drift Bands (1)
-integer, public :: NumBands =0 !< Number of wavenumber/frequency partitions to receive
-                               !! This needs to match the number of bands provided
-                               !! via either coupling or file.
-                               !! \todo Module variable! Move into a control structure.
 integer, public :: PartitionMode !< Method for partition mode (meant to check input)
                                  !! 0 - wavenumbers
                                  !! 1 - frequencies
@@ -302,33 +301,33 @@ subroutine MOM_wave_interface_init(time, G, GV, US, param_file, CS, diag )
     case (COUPLER_STRING)! Reserved for coupling
       DataSource = Coupler
       ! This is just to make something work, but it needs to be read from the wavemodel.
-      call get_param(param_file,mdl,"STK_BAND_COUPLER",NumBands,                 &
+      call get_param(param_file,mdl,"STK_BAND_COUPLER",CS%NumBands,                &
          "STK_BAND_COUPLER is the number of Stokes drift bands in the coupler. "// &
          "This has to be consistent with the number of Stokes drift bands in WW3, "//&
          "or the model will fail.",units='', default=1)
-      allocate( CS%WaveNum_Cen(NumBands) )
-      allocate( CS%STKx0(G%isdB:G%iedB,G%jsd:G%jed,NumBands))
-      allocate( CS%STKy0(G%isdB:G%iedB,G%jsd:G%jed,NumBands))
+      allocate( CS%WaveNum_Cen(CS%NumBands) )
+      allocate( CS%STKx0(G%isdB:G%iedB,G%jsd:G%jed,CS%NumBands))
+      allocate( CS%STKy0(G%isdB:G%iedB,G%jsd:G%jed,CS%NumBands))
       CS%WaveNum_Cen(:) = 0.0
       CS%STKx0(:,:,:) = 0.0
       CS%STKy0(:,:,:) = 0.0
       partitionmode = 0
     case (INPUT_STRING)! A method to input the Stokes band (globally uniform)
       DataSource = Input
-      call get_param(param_file,mdl,"SURFBAND_NB",NumBands,                 &
+      call get_param(param_file,mdl,"SURFBAND_NB",CS%NumBands,              &
          "Prescribe number of wavenumber bands for Stokes drift. "//      &
          "Make sure this is consistnet w/ WAVENUMBERS, STOKES_X, and "// &
          "STOKES_Y, there are no safety checks in the code.",              &
          units='', default=1)
-      allocate( CS%WaveNum_Cen(1:NumBands) )
+      allocate( CS%WaveNum_Cen(1:CS%NumBands) )
       CS%WaveNum_Cen(:) = 0.0
-      allocate( CS%PrescribedSurfStkX(1:NumBands))
+      allocate( CS%PrescribedSurfStkX(1:CS%NumBands))
       CS%PrescribedSurfStkX(:) = 0.0
-      allocate( CS%PrescribedSurfStkY(1:NumBands))
+      allocate( CS%PrescribedSurfStkY(1:CS%NumBands))
       CS%PrescribedSurfStkY(:) = 0.0
-      allocate( CS%STKx0(G%isdB:G%iedB,G%jsd:G%jed,1:NumBands))
+      allocate( CS%STKx0(G%isdB:G%iedB,G%jsd:G%jed,1:CS%NumBands))
       CS%STKx0(:,:,:) = 0.0
-      allocate( CS%STKy0(G%isd:G%ied,G%jsdB:G%jedB,1:NumBands))
+      allocate( CS%STKy0(G%isd:G%ied,G%jsdB:G%jedB,1:CS%NumBands))
       CS%STKy0(:,:,:) = 0.0
       partitionmode=0
       call get_param(param_file,mdl,"SURFBAND_WAVENUMBERS",CS%WaveNum_Cen,      &
@@ -473,7 +472,7 @@ subroutine Update_Surface_Waves(G, GV, US, Day, dt, CS, forces)
              "ww3_grid.inp, and that your mod_def.ww3 is up to date.")
       endif
 
-      do b=1,NumBands
+      do b=1,CS%NumBands
         CS%WaveNum_Cen(b) = forces%stk_wavenumbers(b)
         !Interpolate from a grid to c grid
         do II=G%iscB,G%iecB
@@ -489,7 +488,7 @@ subroutine Update_Surface_Waves(G, GV, US, Day, dt, CS, forces)
         call pass_vector(CS%STKx0(:,:,b),CS%STKy0(:,:,b), G%Domain)
       enddo
     elseif (DataSource==Input) then
-      do b=1,NumBands
+      do b=1,CS%NumBands
         do II=G%isdB,G%iedB
           do jj=G%jsd,G%jed
             CS%STKx0(II,jj,b) = CS%PrescribedSurfStkX(b)
@@ -571,7 +570,7 @@ subroutine Update_Stokes_Drift(G, GV, US, CS, h, ustar)
       do jj = G%jsd,G%jed
         ! 1. First compute the surface Stokes drift
         !    by integrating over the partitionas.
-        do b = 1,NumBands
+        do b = 1,CS%NumBands
           if (PartitionMode==0) then
             ! In wavenumber we are averaging over (small) level
             CMN_FAC = (1.0-exp(-one_cm*2.*CS%WaveNum_Cen(b))) / &
@@ -592,7 +591,7 @@ subroutine Update_Stokes_Drift(G, GV, US, CS, h, ustar)
           Bottom = Bottom - level_thick
           ! -> Stokes drift in thin layers not averaged.
           if (level_thick>min_level_thick_avg) then
-            do b = 1,NumBands
+            do b = 1,CS%NumBands
               if (PartitionMode==0) then
               ! In wavenumber we are averaging over level
                 CMN_FAC = (exp(Top*2.*CS%WaveNum_Cen(b))-exp(Bottom*2.*CS%WaveNum_Cen(b)))&
@@ -612,7 +611,7 @@ subroutine Update_Stokes_Drift(G, GV, US, CS, h, ustar)
             enddo
           else
             ! Take the value at the midpoint
-            do b = 1,NumBands
+            do b = 1,CS%NumBands
               if (PartitionMode==0) then
                 CMN_FAC = exp(MidPoint*2.*CS%WaveNum_Cen(b))
               elseif (PartitionMode==1) then
@@ -628,7 +627,7 @@ subroutine Update_Stokes_Drift(G, GV, US, CS, h, ustar)
     do ii = G%isd,G%ied
       do JJ = G%jsdB,G%jedB
         ! Compute the surface values.
-        do b = 1,NumBands
+        do b = 1,CS%NumBands
           if (PartitionMode==0) then
             ! In wavenumber we are averaging over (small) level
             CMN_FAC = (1.0-exp(-one_cm*2.*CS%WaveNum_Cen(b))) / &
@@ -649,7 +648,7 @@ subroutine Update_Stokes_Drift(G, GV, US, CS, h, ustar)
           Bottom = Bottom - level_thick
           ! -> Stokes drift in thin layers not averaged.
           if (level_thick>min_level_thick_avg) then
-            do b = 1,NumBands
+            do b = 1,CS%NumBands
               if (PartitionMode==0) then
               ! In wavenumber we are averaging over level
                 CMN_FAC = (exp(Top*2.*CS%WaveNum_Cen(b))-exp(Bottom*2.*CS%WaveNum_Cen(b)))&
@@ -669,7 +668,7 @@ subroutine Update_Stokes_Drift(G, GV, US, CS, h, ustar)
             enddo
           else
             ! Take the value at the midpoint
-            do b = 1,NumBands
+            do b = 1,CS%NumBands
               if (PartitionMode==0) then
                 CMN_FAC = exp(MidPoint*2.*CS%WaveNum_Cen(b))
               elseif (PartitionMode==1) then
@@ -874,8 +873,8 @@ subroutine Surface_Bands_by_data_override(day_center, G, GV, US, CS)
              trim(varread1)//",dim_name "//trim(dim_name(1))//  &
              " in file "// trim(SurfBandFileName)//" in MOM_wave_interface")
       endif
-      NUMBANDS = ID
-      do B = 1,NumBands ; CS%WaveNum_Cen(b) = US%Z_to_m*CS%WaveNum_Cen(b) ; enddo
+      CS%NUMBANDS = ID
+      do B = 1,CS%NumBands ; CS%WaveNum_Cen(b) = US%Z_to_m*CS%WaveNum_Cen(b) ; enddo
     elseif (PartitionMode==1) then
       rcode_fr = NF90_GET_VAR(ncid, dim_id(1), CS%Freq_Cen, start, counter)
       if (rcode_fr /= 0) then
@@ -884,15 +883,15 @@ subroutine Surface_Bands_by_data_override(day_center, G, GV, US, CS)
              trim(varread2)//",dim_name "//trim(dim_name(1))//  &
              " in file "// trim(SurfBandFileName)//" in MOM_wave_interface")
       endif
-      NUMBANDS = ID
-      do B = 1,NumBands
+      CS%NUMBANDS = ID
+      do B = 1,CS%NumBands
         CS%WaveNum_Cen(b) = (2.*PI*CS%Freq_Cen(b)*US%T_to_s)**2 / (US%L_to_Z**2*GV%g_Earth)
       enddo
     endif
 
   endif
 
-  do b = 1,NumBands
+  do b = 1,CS%NumBands
     temp_x(:,:) = 0.0
     temp_y(:,:) = 0.0
     varname = '                    '
@@ -966,8 +965,9 @@ subroutine get_Langmuir_Number( LA, G, GV, US, HBL, ustar, i, j, &
   real :: LA_STKx, LA_STKy, LA_STK ! Stokes velocities in [m s-1]
   logical :: ContinueLoop, USE_MA
   real, dimension(SZK_(G)) :: US_H, VS_H
-  real, dimension(NumBands) :: StkBand_X, StkBand_Y
+  real, allocatable :: StkBand_X(:), StkBand_Y(:)
   integer :: KK, BB
+
 
  ! Compute averaging depth for Stokes drift (negative)
   Dpt_LASL = min(-0.1*US%m_to_Z, -LA_FracHBL*HBL)
@@ -1002,13 +1002,15 @@ subroutine get_Langmuir_Number( LA, G, GV, US, HBL, ustar, i, j, &
     call Get_SL_Average_Prof( GV, Dpt_LASL, H, VS_H, LA_STKy)
     LA_STK = sqrt(LA_STKX*LA_STKX+LA_STKY*LA_STKY)
   elseif (WaveMethod==SURFBANDS) then
-    do bb = 1,NumBands
+    allocate(StkBand_X(WAVES%NumBands), StkBand_Y(WAVES%NumBands))
+    do bb = 1,WAVES%NumBands
       StkBand_X(bb) = 0.5*(WAVES%STKx0(I,j,bb)+WAVES%STKx0(I-1,j,bb))
       StkBand_Y(bb) = 0.5*(WAVES%STKy0(i,J,bb)+WAVES%STKy0(i,J-1,bb))
     enddo
-    call Get_SL_Average_Band(GV, Dpt_LASL, NumBands, WAVES%WaveNum_Cen, StkBand_X, LA_STKx )
-    call Get_SL_Average_Band(GV, Dpt_LASL, NumBands, WAVES%WaveNum_Cen, StkBand_Y, LA_STKy )
+    call Get_SL_Average_Band(GV, Dpt_LASL, WAVES%NumBands, WAVES%WaveNum_Cen, StkBand_X, LA_STKx )
+    call Get_SL_Average_Band(GV, Dpt_LASL, WAVES%NumBands, WAVES%WaveNum_Cen, StkBand_Y, LA_STKy )
     LA_STK = sqrt(LA_STKX**2 + LA_STKY**2)
+    deallocate(StkBand_X, StkBand_Y)
   elseif (WaveMethod==DHH85) then
     ! Temporarily integrating profile rather than spectrum for simplicity
     do kk = 1,GV%ke
