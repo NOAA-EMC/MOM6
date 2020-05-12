@@ -251,8 +251,7 @@ subroutine mom_import(ocean_public, ocean_grid, importState, ice_ocean_boundary,
   !----
   ! Partitioned Stokes Drift Components 
   !----
-  if (ice_ocean_boundary%use_waves) then
-    
+  if ( associated(ice_ocean_boundary%ustkb) ) then    
     allocate(stkx1(isc:iec,jsc:jec))
     allocate(stky1(isc:iec,jsc:jec))
     allocate(stkx2(isc:iec,jsc:jec))

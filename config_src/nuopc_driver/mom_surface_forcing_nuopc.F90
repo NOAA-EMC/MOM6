@@ -186,7 +186,6 @@ type, public :: ice_ocean_boundary_type
   real, pointer, dimension(:)     :: stk_wavenumbers => NULL() !<
   real, pointer, dimension(:,:,:) :: ustkb           => NULL() !<
   real, pointer, dimension(:,:,:) :: vstkb           => NULL() !<
-  logical :: use_waves                !< Logical for using wave coupling 
   integer :: num_stk_bands            !< Number of Stokes drift bands passed through the coupler
   integer :: xtype                                            !< The type of the exchange - REGRID, REDIST or DIRECT
   type(coupler_2d_bc_type)      :: fluxes                     !< A structure that may contain an array of
@@ -676,11 +675,8 @@ subroutine convert_IOB_to_forces(IOB, forces, index_bounds, Time, G, US, CS)
   if (associated(forces%rigidity_ice_u)) forces%rigidity_ice_u(:,:) = 0.0
   if (associated(forces%rigidity_ice_v)) forces%rigidity_ice_v(:,:) = 0.0
 
-  !wave to ocean coupling
-  if (IOB%use_waves) then 
-    if ( associated(IOB%ustkb) ) &
-      call allocate_mech_forcing(G, forces, waves=.true., num_stk_bands=IOB%num_stk_bands)
-  endif 
+  if ( associated(IOB%ustkb) ) &
+    call allocate_mech_forcing(G, forces, waves=.true., num_stk_bands=IOB%num_stk_bands)
 
   ! applied surface pressure from atmosphere and cryosphere
   if (CS%use_limited_P_SSH) then
@@ -840,7 +836,8 @@ subroutine convert_IOB_to_forces(IOB, forces, index_bounds, Time, G, US, CS)
   endif   ! endif for wind related fields
 
   ! wave to ocean coupling
-  if (IOB%use_waves) then  
+  if ( associated(IOB%ustkb) ) then
+
     forces%stk_wavenumbers(:) = IOB%stk_wavenumbers
     do j=js,je; do i=is,ie
       forces%ustk0(i,j) = IOB%ustk0(i-I0,j-J0) ! How to be careful here that the domains are right?

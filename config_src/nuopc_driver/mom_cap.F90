@@ -606,7 +606,6 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
   Ice_ocean_boundary%lrunoff         = 0.0
   Ice_ocean_boundary%frunoff         = 0.0
 
-  Ice_ocean_boundary%use_waves=ocean_state%use_waves
   if (ocean_state%use_waves) then
     Ice_ocean_boundary%num_stk_bands=ocean_state%Waves%NumBands
     allocate ( Ice_ocean_boundary% ustk0 (isc:iec,jsc:jec),         &
