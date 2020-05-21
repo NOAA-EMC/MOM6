@@ -6,3 +6,5 @@ html
 MOM6
 build/
 deps/
+mod/
+*.a
