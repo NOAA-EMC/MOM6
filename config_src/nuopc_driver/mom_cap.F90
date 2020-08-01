@@ -36,7 +36,7 @@ use MOM_ocean_model_nuopc,    only: ocean_model_init_sfc
 use MOM_ocean_model_nuopc,    only: ocean_model_init, update_ocean_model, ocean_model_end
 use MOM_ocean_model_nuopc,    only: get_ocean_grid, get_eps_omesh
 use MOM_cap_time,             only: AlarmInit
-use MOM_cap_methods,          only: mom_import, mom_export, mom_set_geomtype
+use MOM_cap_methods,          only: mom_import, mom_export, mom_set_geomtype, state_diagnose
 #ifdef CESMCOUPLED
 use shr_file_mod,             only: shr_file_setLogUnit, shr_file_getLogUnit
 #endif
@@ -1339,6 +1339,7 @@ subroutine ModelAdvance(gcomp, rc)
   character(240)                         :: import_timestr, export_timestr
   character(len=128)                     :: fldname
   character(len=*),parameter             :: subname='(MOM_cap:ModelAdvance)'
+  integer     , parameter                :: dbug = 10
 
   rc = ESMF_SUCCESS
   if(profile_memory) call ESMF_VMLogMemInfo("Entering MOM Model_ADVANCE: ")
@@ -1431,6 +1432,11 @@ subroutine ModelAdvance(gcomp, rc)
       enddo
      endif
 
+     if (dbug > 1) then
+       call state_diagnose(importState,subname//':IS ',rc=rc)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+     end if
+
      !---------------
      ! Get ocean grid
      !---------------
@@ -1459,6 +1465,10 @@ subroutine ModelAdvance(gcomp, rc)
      call mom_export(ocean_public, ocean_grid, ocean_state, exportState, clock, rc=rc)
      if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
+     if (dbug > 1) then
+       call state_diagnose(exportState,subname//':ES ',rc=rc)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+     end if
   endif
 
   !---------------
