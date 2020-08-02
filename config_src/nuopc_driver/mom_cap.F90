@@ -26,7 +26,7 @@ use time_manager_mod,         only: date_to_string
 use time_manager_mod,         only: fms_get_calendar_type => get_calendar_type
 use MOM_domains,              only: MOM_infra_init, num_pes, root_pe, pe_here
 use MOM_file_parser,          only: get_param, log_version, param_file_type, close_param_file
-use MOM_get_input,            only: Get_MOM_Input, directories
+use MOM_get_input,            only: get_MOM_input, directories
 use MOM_domains,              only: pass_var
 use MOM_error_handler,        only: MOM_error, FATAL, is_root_pe
 use MOM_ocean_model_nuopc,    only: ice_ocean_boundary_type
@@ -358,6 +358,7 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
   type(ice_ocean_boundary_type), pointer :: Ice_ocean_boundary => NULL()
   type(ocean_internalstate_wrapper)      :: ocean_internalstate
   type(ocean_grid_type),         pointer :: ocean_grid => NULL()
+  type(directories)                      :: dirs
   type(time_type)                        :: Run_len      !< length of experiment
   type(time_type)                        :: time0        !< Start time of coupled model's calendar.
   type(time_type)                        :: time_start   !< The time at which to initialize the ocean model
@@ -520,8 +521,12 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
 
   restartfile = ""
   if (runtype == "initial") then
-
-     restartfile = "n"
+    if (cesm_coupled) then
+      restartfile = "n"
+    else
+      call get_MOM_input(dirs=dirs)
+      restartfile = dirs%input_filename(1:1)
+    endif
 
   else if (runtype == "continue") then ! hybrid or branch or continuos runs
 
