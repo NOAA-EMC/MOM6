@@ -1357,11 +1357,12 @@ subroutine ModelAdvance(gcomp, rc)
     exportState=exportState, rc=rc)
   if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
+  ! HERE THE MODEL ADVANCES: currTime -> currTime + timeStep
+  
   call ESMF_ClockGet(clock, startTime=startTime, currTime=currTime, &
     timeStep=timeStep, rc=rc)
   if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-  ! HERE THE MODEL ADVANCES: currTime -> currTime + timeStep
   call ESMF_ClockPrint(clock, options="currTime", &
     preString="------>Advancing OCN from: ", unit=msgString, rc=rc)
   if (ChkErr(rc,__LINE__,u_FILE_u)) return
