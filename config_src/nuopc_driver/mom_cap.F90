@@ -527,6 +527,7 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
       call get_MOM_input(dirs=dirs)
       restartfile = dirs%input_filename(1:1)
     endif
+    call ESMF_LogWrite('MOM_cap:restartfile = '//trim(restartfile), ESMF_LOGMSG_INFO)
 
   else if (runtype == "continue") then ! hybrid or branch or continuos runs
 
@@ -1356,24 +1357,9 @@ subroutine ModelAdvance(gcomp, rc)
     exportState=exportState, rc=rc)
   if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-  ! HERE THE MODEL ADVANCES: currTime -> currTime + timeStep
-
-  call ESMF_ClockPrint(clock, options="currTime", &
-    preString="------>Advancing OCN from: ", unit=msgString, rc=rc)
-  if (ChkErr(rc,__LINE__,u_FILE_u)) return
-  call ESMF_LogWrite(subname//trim(msgString), ESMF_LOGMSG_INFO)
-
   call ESMF_ClockGet(clock, startTime=startTime, currTime=currTime, &
     timeStep=timeStep, rc=rc)
   if (ChkErr(rc,__LINE__,u_FILE_u)) return
-
-  call ESMF_TimePrint(currTime + timeStep, &
-    preString="--------------------------------> to: ", unit=msgString, rc=rc)
-  if (ChkErr(rc,__LINE__,u_FILE_u)) return
-  call ESMF_LogWrite(trim(msgString), ESMF_LOGMSG_INFO)
-
-  call ESMF_TimeGet(currTime,          timestring=import_timestr, rc=rc)
-  call ESMF_TimeGet(currTime+timestep, timestring=export_timestr, rc=rc)
 
   Time_step_coupled = esmf2fms_time(timeStep)
   Time = esmf2fms_time(currTime)
@@ -1408,6 +1394,17 @@ subroutine ModelAdvance(gcomp, rc)
   endif
 
   if (do_advance) then
+
+     ! HERE THE MODEL ADVANCES: currTime -> currTime + timeStep
+     call ESMF_ClockPrint(clock, options="currTime", &
+       preString="------>Advancing OCN from: ", unit=msgString, rc=rc)
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
+     call ESMF_TimePrint(currTime + timeStep, &
+       preString="--------------------------------> to: ", unit=msgString, rc=rc)
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+     call ESMF_TimeGet(currTime,          timestring=import_timestr, rc=rc)
+     call ESMF_TimeGet(currTime+timestep, timestring=export_timestr, rc=rc)
 
      call ESMF_GridCompGetInternalState(gcomp, ocean_internalstate, rc)
      if (ChkErr(rc,__LINE__,u_FILE_u)) return
