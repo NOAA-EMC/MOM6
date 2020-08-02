@@ -5,7 +5,7 @@ use ESMF,                      only: ESMF_Clock, ESMF_ClockGet, ESMF_time, ESMF_
 use ESMF,                      only: ESMF_TimeInterval, ESMF_TimeIntervalGet
 use ESMF,                      only: ESMF_State, ESMF_StateGet
 use ESMF,                      only: ESMF_Field, ESMF_FieldGet, ESMF_FieldCreate
-use ESMF,                      only: ESMF_GridComp, ESMF_Mesh, ESMF_Grid, ESMF_GridCreate
+use ESMF,                      only: ESMF_GridComp, ESMF_Mesh, ESMF_MeshGet, ESMF_Grid, ESMF_GridCreate
 use ESMF,                      only: ESMF_DistGrid, ESMF_DistGridCreate
 use ESMF,                      only: ESMF_KIND_R8, ESMF_SUCCESS, ESMF_LogFoundError
 use ESMF,                      only: ESMF_LOGERR_PASSTHRU, ESMF_LOGMSG_INFO, ESMF_LOGWRITE
@@ -850,7 +850,8 @@ subroutine field_getfldptr(field, fldptr1, fldptr2, rank, abort, rc)
   ! local variables
   type(ESMF_GeomType_Flag)    :: geomtype
   type(ESMF_FieldStatus_Flag) :: status
-  integer                     :: lrank
+  type(ESMF_Mesh)             :: lmesh
+  integer                     :: lrank, nnodes, nelements
   logical                     :: labort
   character(len=*), parameter :: subname='(field_getfldptr)'
   ! ----------------------------------------------
@@ -893,11 +894,11 @@ subroutine field_getfldptr(field, fldptr1, fldptr2, rank, abort, rc)
      elseif (geomtype == ESMF_GEOMTYPE_MESH) then
         call ESMF_FieldGet(field, rank=lrank, rc=rc)
         if (chkerr(rc,__LINE__,u_FILE_u)) return
-        !call ESMF_FieldGet(field, mesh=lmesh, rc=rc)
-        !if (chkerr(rc,__LINE__,u_FILE_u)) return
-        !call ESMF_MeshGet(lmesh, numOwnedNodes=nnodes, numOwnedElements=nelements, rc=rc)
-        !if (chkerr(rc,__LINE__,u_FILE_u)) return
-        !if (nnodes == 0 .and. nelements == 0) lrank = 0
+        call ESMF_FieldGet(field, mesh=lmesh, rc=rc)
+        if (chkerr(rc,__LINE__,u_FILE_u)) return
+        call ESMF_MeshGet(lmesh, numOwnedNodes=nnodes, numOwnedElements=nelements, rc=rc)
+        if (chkerr(rc,__LINE__,u_FILE_u)) return
+        if (nnodes == 0 .and. nelements == 0) lrank = 0
      else  
         call ESMF_LogWrite(trim(subname)//": ERROR geomtype not supported ", &
              ESMF_LOGMSG_INFO, rc=rc)
