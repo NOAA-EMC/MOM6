@@ -1365,20 +1365,20 @@ subroutine ModelAdvance(gcomp, rc)
   if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   ! HERE THE MODEL ADVANCES: currTime -> currTime + timeStep
-  
-  call ESMF_ClockGet(clock, startTime=startTime, currTime=currTime, &
-    timeStep=timeStep, rc=rc)
-  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   call ESMF_ClockPrint(clock, options="currTime", &
     preString="------>Advancing OCN from: ", unit=msgString, rc=rc)
   if (ChkErr(rc,__LINE__,u_FILE_u)) return
   call ESMF_LogWrite(subname//trim(msgString), ESMF_LOGMSG_INFO)
 
+  call ESMF_ClockGet(clock, startTime=startTime, currTime=currTime, &
+    timeStep=timeStep, rc=rc)
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
   call ESMF_TimePrint(currTime + timeStep, &
     preString="--------------------------------> to: ", unit=msgString, rc=rc)
   if (ChkErr(rc,__LINE__,u_FILE_u)) return
-  call ESMF_LogWrite(subname//trim(msgString), ESMF_LOGMSG_INFO)
+  call ESMF_LogWrite(trim(msgString), ESMF_LOGMSG_INFO)
 
   call ESMF_TimeGet(currTime,          timestring=import_timestr, rc=rc)
   call ESMF_TimeGet(currTime+timestep, timestring=export_timestr, rc=rc)
