@@ -124,7 +124,7 @@ type (fld_list_type) :: fldsToOcn(fldsMax)
 integer              :: fldsFrOcn_num = 0
 type (fld_list_type) :: fldsFrOcn(fldsMax)
 
-integer              :: debug = 0
+integer              :: dbug = 0
 integer              :: import_slice = 1
 integer              :: export_slice = 1
 character(len=256)   :: tmpstr
@@ -272,6 +272,14 @@ subroutine InitializeP0(gcomp, importState, exportState, clock, rc)
   if (isPresent .and. isSet) grid_attach_area=(trim(value)=="true")
   write(logmsg,*) grid_attach_area
   call ESMF_LogWrite('MOM_cap:GridAttachArea = '//trim(logmsg), ESMF_LOGMSG_INFO)
+
+  call NUOPC_CompAttributeGet(gcomp, name='dbug_flag', value=value, isPresent=isPresent, isSet=isSet, rc=rc)
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
+  if (isPresent .and. isSet) then
+   read(value,*) dbug
+  end if
+  write(logmsg,'(i6)') dbug
+  call ESMF_LogWrite('MOM_cap:dbug = '//trim(logmsg), ESMF_LOGMSG_INFO)
 
   scalar_field_name = ""
   call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldName", value=value, &
@@ -827,7 +835,7 @@ subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
   allocate(xb(ntiles),xe(ntiles),yb(ntiles),ye(ntiles),pe(ntiles))
   call mpp_get_compute_domains(ocean_public%domain, xbegin=xb, xend=xe, ybegin=yb, yend=ye)
   call mpp_get_pelist(ocean_public%domain, pe)
-  if (debug > 0) then
+  if (dbug > 1) then
      do n = 1,ntiles
         write(tmpstr,'(a,6i6)') subname//' tiles ',n,pe(n),xb(n),xe(n),yb(n),ye(n)
         call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO)
@@ -1345,7 +1353,6 @@ subroutine ModelAdvance(gcomp, rc)
   character(240)                         :: import_timestr, export_timestr
   character(len=128)                     :: fldname
   character(len=*),parameter             :: subname='(MOM_cap:ModelAdvance)'
-  integer     , parameter                :: dbug = 10
 
   rc = ESMF_SUCCESS
   if(profile_memory) call ESMF_VMLogMemInfo("Entering MOM Model_ADVANCE: ")
@@ -1438,7 +1445,7 @@ subroutine ModelAdvance(gcomp, rc)
       enddo
      endif
 
-     if (dbug > 1) then
+     if (dbug > 0) then
        call state_diagnose(importState,subname//':IS ',rc=rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
      end if
@@ -1471,7 +1478,7 @@ subroutine ModelAdvance(gcomp, rc)
      call mom_export(ocean_public, ocean_grid, ocean_state, exportState, clock, rc=rc)
      if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-     if (dbug > 1) then
+     if (dbug > 0) then
        call state_diagnose(exportState,subname//':ES ',rc=rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
      end if
