@@ -134,6 +134,7 @@ character(len=32)    :: runtype  !< run type
 integer              :: logunit  !< stdout logging unit number
 logical              :: profile_memory = .true.
 logical              :: grid_attach_area = .false.
+logical              :: use_coldstart = .true.
 character(len=128)   :: scalar_field_name = ''
 integer              :: scalar_field_count = 0
 integer              :: scalar_field_idx_grid_nx = 0
@@ -337,6 +338,14 @@ subroutine InitializeP0(gcomp, importState, exportState, clock, rc)
      write(logmsg,*) scalar_field_idx_grid_ny
      call ESMF_LogWrite('MOM_cap:ScalarFieldIdxGridNY = '//trim(logmsg), ESMF_LOGMSG_INFO)
   endif
+
+  use_coldstart = .true.
+  call NUOPC_CompAttributeGet(gcomp, name="use_coldstart", value=value, &
+       isPresent=isPresent, isSet=isSet, rc=rc)
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
+  if (isPresent .and. isSet) use_coldstart=(trim(value)=="true")
+  write(logmsg,*) use_coldstart
+  call ESMF_LogWrite('MOM_cap:use_coldstart = '//trim(logmsg), ESMF_LOGMSG_INFO)
 
 end subroutine
 
@@ -1390,7 +1399,7 @@ subroutine ModelAdvance(gcomp, rc)
   ! Apply ocean lag for startup runs:
   !---------------
 
-  if (cesm_coupled) then
+  if (cesm_coupled .or. (.not.use_coldstart)) then
     if (trim(runtype) == "initial") then
 
       ! Do not call MOM6 timestepping routine if the first cpl tstep of a startup run
