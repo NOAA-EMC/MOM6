@@ -551,9 +551,9 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
      if (cesm_coupled) then
         call ESMF_LogWrite('MOM_cap: restart requested, using rpointer.ocn', ESMF_LOGMSG_WARNING)
         call ESMF_GridCompGet(gcomp, vm=vm, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
         call ESMF_VMGet(vm, localPet=localPet, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
         if (localPet == 0) then
            ! this hard coded for rpointer.ocn right now
@@ -573,7 +573,7 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
          endif
          ! broadcast attribute set on master task to all tasks
          call ESMF_VMBroadcast(vm, restartfile, count=ESMF_MAXSTR-1, rootPet=0, rc=rc)
-         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
+         if (ChkErr(rc,__LINE__,u_FILE_u)) return
       else
          call ESMF_LogWrite('MOM_cap: restart requested, use input.nml', ESMF_LOGMSG_WARNING)
        endif
@@ -1259,9 +1259,9 @@ subroutine DataInitialize(gcomp, rc)
   if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   call ESMF_ClockGet(clock, currTime=currTime, timeStep=timeStep, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
   call ESMF_TimeGet(currTime,          timestring=timestr, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   call ESMF_GridCompGetInternalState(gcomp, ocean_internalstate, rc)
   if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -1498,10 +1498,7 @@ subroutine ModelAdvance(gcomp, rc)
   !---------------
 
    call ESMF_ClockGetAlarm(clock, alarmname='stop_alarm', alarm=stop_alarm, rc=rc)
-   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-       line=__LINE__, &
-       file=__FILE__)) &
-       return  ! bail out
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   !---------------
   ! If restart alarm exists and is ringing - write restart file
@@ -1509,41 +1506,26 @@ subroutine ModelAdvance(gcomp, rc)
 
   if (restart_mode == 'cmeps') then
      call ESMF_ClockGetAlarm(clock, alarmname='restart_alarm', alarm=restart_alarm, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return  ! bail out
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      if (ESMF_AlarmIsRinging(restart_alarm, rc=rc)) then
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return  ! bail out
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      ! turn off the alarm
      call ESMF_AlarmRingerOff(restart_alarm, rc=rc )
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, &
-         file=__FILE__)) &
-         return  ! bail out
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
      call ESMF_ClockGetNextTime(clock, MyTime, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
      call ESMF_TimeGet (MyTime, yy=year, mm=month, dd=day, h=hour, m=minute, s=seconds, rc=rc )
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
      if (cesm_coupled) then
         call NUOPC_CompAttributeGet(gcomp, name='case_name', value=casename, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
         call ESMF_GridCompGet(gcomp, vm=vm, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
         call ESMF_VMGet(vm, localPet=localPet, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
         write(restartname,'(A,".mom6.r.",I4.4,"-",I2.2,"-",I2.2,"-",I5.5)') &
              trim(casename), year, month, day, seconds
@@ -1703,8 +1685,7 @@ subroutine ModelSetRunClock(gcomp, rc)
      else
         call NUOPC_CompAttributeGet(gcomp, name="restart_n", value=cvalue, &
              isPresent=isPresent, isSet=isSet, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-            line=__LINE__, file=__FILE__)) return
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
         ! If restart_n is set and non-zero, then restart_option must be available from config
         if (isPresent .and. isSet) then
@@ -1713,8 +1694,7 @@ subroutine ModelSetRunClock(gcomp, rc)
           if(restart_n /= 0)then
             call NUOPC_CompAttributeGet(gcomp, name="restart_option", value=cvalue, &
                  isPresent=isPresent, isSet=isSet, rc=rc)
-            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-                line=__LINE__, file=__FILE__)) return
+            if (ChkErr(rc,__LINE__,u_FILE_u)) return
             if (isPresent .and. isSet) then
               read(cvalue,*) restart_option
               call ESMF_LogWrite(subname//" Restart_option = "//restart_option, &
@@ -1729,8 +1709,7 @@ subroutine ModelSetRunClock(gcomp, rc)
             ! not used in nems
             call NUOPC_CompAttributeGet(gcomp, name="restart_ymd", value=cvalue, &
                  isPresent=isPresent, isSet=isSet, rc=rc)
-            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-                line=__LINE__, file=__FILE__)) return
+            if (ChkErr(rc,__LINE__,u_FILE_u)) return
             if (isPresent .and. isSet) then
                read(cvalue,*) restart_ymd
                call ESMF_LogWrite(subname//" Restart_ymd = "//trim(cvalue), ESMF_LOGMSG_INFO)
@@ -1755,25 +1734,18 @@ subroutine ModelSetRunClock(gcomp, rc)
              opt_ymd = restart_ymd,           &
              RefTime = mcurrTime,             &
              alarmname = 'restart_alarm', rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-             line=__LINE__, &
-             file=__FILE__)) &
-             return  ! bail out
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
         call ESMF_AlarmSet(restart_alarm, clock=mclock, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-             line=__LINE__, &
-             file=__FILE__)) &
-             return  ! bail out
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
         call ESMF_LogWrite(subname//" Restart alarm is Created and Set", ESMF_LOGMSG_INFO)
      end if
 
      ! create a 1-shot alarm at the driver stop time
      stop_alarm = ESMF_AlarmCreate(mclock, ringtime=dstopTime, name = "stop_alarm", rc=rc)
      call ESMF_LogWrite(subname//" Create Stop alarm", ESMF_LOGMSG_INFO)
-     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-         line=__LINE__, file=__FILE__)) return
- 
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
      call ESMF_TimeGet(dstoptime, timestring=timestr, rc=rc)
      call ESMF_LogWrite("Stop Alarm will ring at : "//trim(timestr), ESMF_LOGMSG_INFO)
 
