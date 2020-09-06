@@ -149,7 +149,7 @@ type(ESMF_GeomType_Flag) :: geomtype = ESMF_GEOMTYPE_MESH
 logical :: cesm_coupled = .false.
 type(ESMF_GeomType_Flag) :: geomtype = ESMF_GEOMTYPE_GRID
 #endif
-character(len=8) :: restart_mode = 'cmeps'
+character(len=8) :: restart_mode = 'alarms'
 
 contains
 
@@ -398,6 +398,8 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
   integer                                :: iostat
   integer                                :: readunit
   character(len=512)                     :: restartfile          ! Path/Name of restart file
+  character(len=2048)                    :: restartfiles         ! Path/Name of restart files
+                                                                 ! (same as restartfile if single restart file)
   character(len=*), parameter            :: subname='(MOM_cap:InitializeAdvertise)'
   character(len=32)                      :: calendar
 !--------------------------------
@@ -429,6 +431,7 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
   CALL ESMF_TimeIntervalGet(TINT, S=DT_OCEAN, RC=rc)
   if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
+  !TODO: next two lines not present in NCAR
   call fms_init(mpi_comm_mom)
   call constants_init
   call field_manager_init
@@ -536,15 +539,15 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
      call ESMF_LogWrite('MOM_cap:startup = '//trim(runtype), ESMF_LOGMSG_INFO)
   endif
 
-  restartfile = ""
+  restartfile = ""; restartfiles = ""
   if (runtype == "initial") then
     if (cesm_coupled) then
-      restartfile = "n"
+      restartfiles = "n"
     else
       call get_MOM_input(dirs=dirs)
-      restartfile = dirs%input_filename(1:1)
+      restartfiles = dirs%input_filename(1:1)
     endif
-    call ESMF_LogWrite('MOM_cap:restartfile = '//trim(restartfile), ESMF_LOGMSG_INFO)
+    call ESMF_LogWrite('MOM_cap:restartfile = '//trim(restartfiles), ESMF_LOGMSG_INFO)
 
   else if (runtype == "continue") then ! hybrid or branch or continuos runs
 
@@ -563,16 +566,27 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
                      line=__LINE__, file=u_FILE_u, rcToReturn=rc)
                 return
             endif
-            read(readunit,'(a)', iostat=iostat) restartfile
-            if (iostat /= 0) then
-               call ESMF_LogSetError(ESMF_RC_FILE_READ, msg=subname//' ERROR reading rpointer.ocn', &
-                    line=__LINE__, file=u_FILE_u, rcToReturn=rc)
-                return
-            endif
+            do
+              read(readunit,'(a)', iostat=iostat) restartfile
+              if (iostat /= 0) then
+                if (len(trim(restartfiles))>1 .and. iostat<0) then
+                  exit ! done reading restart files list.
+                else
+                   call ESMF_LogSetError(ESMF_RC_FILE_READ, msg=subname//' ERROR reading rpointer.ocn', &
+                     line=__LINE__, file=u_FILE_u, rcToReturn=rc)
+                   return
+                endif
+              endif
+              ! check if the length of restartfiles variable is sufficient:
+              if (len(restartfiles)-len(trim(restartfiles)) < len(trim(restartfile))) then
+                call MOM_error(FATAL, "Restart file name(s) too long.")
+              endif
+              restartfiles = trim(restartfiles) // " " // trim(restartfile)
+            enddo
             close(readunit)
          endif
          ! broadcast attribute set on master task to all tasks
-         call ESMF_VMBroadcast(vm, restartfile, count=ESMF_MAXSTR-1, rootPet=0, rc=rc)
+         call ESMF_VMBroadcast(vm, restartfiles, count=len(restartfiles), rootPet=0, rc=rc)
          if (ChkErr(rc,__LINE__,u_FILE_u)) return
       else
          call ESMF_LogWrite('MOM_cap: restart requested, use input.nml', ESMF_LOGMSG_WARNING)
@@ -581,7 +595,7 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
   endif
 
   ocean_public%is_ocean_pe = .true.
-  call ocean_model_init(ocean_public, ocean_state, time0, time_start, input_restart_file=trim(restartfile))
+  call ocean_model_init(ocean_public, ocean_state, time0, time_start, input_restart_file=trim(restartfiles))
 
   call ocean_model_init_sfc(ocean_state, ocean_public)
 
@@ -1358,10 +1372,12 @@ subroutine ModelAdvance(gcomp, rc)
   integer                                :: writeunit
   integer                                :: localPet
   type(ESMF_VM)                          :: vm
-  integer                                :: n
+  integer                                :: n, i
   character(240)                         :: import_timestr, export_timestr
   character(len=128)                     :: fldname
   character(len=*),parameter             :: subname='(MOM_cap:ModelAdvance)'
+  character(len=8)                       :: suffix
+  integer                                :: num_rest_files
 
   rc = ESMF_SUCCESS
   if(profile_memory) call ESMF_VMLogMemInfo("Entering MOM Model_ADVANCE: ")
@@ -1504,7 +1520,7 @@ subroutine ModelAdvance(gcomp, rc)
   ! If restart alarm exists and is ringing - write restart file
   !---------------
 
-  if (restart_mode == 'cmeps') then
+  if (restart_mode == 'alarms') then
      call ESMF_ClockGetAlarm(clock, alarmname='restart_alarm', alarm=restart_alarm, rc=rc)
      if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
@@ -1515,10 +1531,12 @@ subroutine ModelAdvance(gcomp, rc)
      call ESMF_AlarmRingerOff(restart_alarm, rc=rc )
      if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
+  ! determine restart filename
      call ESMF_ClockGetNextTime(clock, MyTime, rc=rc)
      if (ChkErr(rc,__LINE__,u_FILE_u)) return
      call ESMF_TimeGet (MyTime, yy=year, mm=month, dd=day, h=hour, m=minute, s=seconds, rc=rc )
      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
      if (cesm_coupled) then
         call NUOPC_CompAttributeGet(gcomp, name='case_name', value=casename, rc=rc)
         if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -1529,6 +1547,10 @@ subroutine ModelAdvance(gcomp, rc)
 
         write(restartname,'(A,".mom6.r.",I4.4,"-",I2.2,"-",I2.2,"-",I5.5)') &
              trim(casename), year, month, day, seconds
+        call ESMF_LogWrite("MOM_cap: Writing restart :  "//trim(restartname), ESMF_LOGMSG_INFO)
+
+        ! write restart file(s)
+        call ocean_model_restart(ocean_state, restartname=restartname, num_rest_files=num_rest_files)
         if (localPet == 0) then
            ! Write name of restart file in the rpointer file - this is currently hard-coded for the ocean
            open(newunit=writeunit, file='rpointer.ocn', form='formatted', status='unknown', iostat=iostat)
@@ -1538,9 +1560,20 @@ subroutine ModelAdvance(gcomp, rc)
               return
            endif
            write(writeunit,'(a)') trim(restartname)//'.nc'
+           if (num_rest_files > 1) then
+              ! append i.th restart file name to rpointer
+              do i=1, num_rest_files-1
+                if (i < 10) then
+                  write(suffix,'("_",I1)') i
+                else
+                  write(suffix,'("_",I2)') i
+                endif
+                write(writeunit,'(a)') trim(restartname) // trim(suffix) // '.nc'
+              enddo
+           endif
            close(writeunit)
         endif
-     else
+     else  ! not cesm_coupled
         ! write the final restart without a timestamp
         if (ESMF_AlarmIsRinging(stop_alarm, rc=rc)) then
            write(restartname,'(A)')"MOM.res"
@@ -1548,17 +1581,16 @@ subroutine ModelAdvance(gcomp, rc)
            write(restartname,'(A,I4.4,"-",I2.2,"-",I2.2,"-",I2.2,"-",I2.2,"-",I2.2)') &
                 "MOM.res.", year, month, day, hour, minute, seconds
         endif
-     end if
-     call ESMF_LogWrite("MOM_cap: Writing restart :  "//trim(restartname), ESMF_LOGMSG_INFO)
+        call ESMF_LogWrite("MOM_cap: Writing restart :  "//trim(restartname), ESMF_LOGMSG_INFO)
 
-     ! write restart file(s)
-     call ocean_model_restart(ocean_state, restartname=restartname)
+        ! write restart file(s)
+        call ocean_model_restart(ocean_state, restartname=restartname)
+     endif
 
      if (is_root_pe()) then
        write(logunit,*) subname//' writing restart file ',trim(restartname)
      endif
-    endif
-  end if ! end of restart_mode is cmeps
+  end if ! end of restart_mode alarms
 
   !---------------
   ! Write diagnostics
@@ -1715,18 +1747,14 @@ subroutine ModelSetRunClock(gcomp, rc)
                call ESMF_LogWrite(subname//" Restart_ymd = "//trim(cvalue), ESMF_LOGMSG_INFO)
             endif
           else
-            ! restart_n is zero, restart_mode will be nems 
-            restart_mode = 'nems'
-            call ESMF_LogWrite(subname//" Set restart_mode to nems", ESMF_LOGMSG_INFO)
+            ! restart_n is zero, restarts will be written at finalize only (no alarm control) 
+            restart_mode = 'no_alarms'
+            call ESMF_LogWrite(subname//" Restarts will be written at finalize only", ESMF_LOGMSG_INFO)
           endif
-        else
-          ! restart_n is not set, restart_mode will be nems 
-          restart_mode = 'nems'
-          call ESMF_LogWrite(subname//" Set restart_mode to nems", ESMF_LOGMSG_INFO)
         endif
      endif
 
-     if (restart_mode == 'cmeps') then
+     if (restart_mode == 'alarms') then
         call AlarmInit(mclock, &
              alarm   = restart_alarm,         &
              option  = trim(restart_option),  &
@@ -1803,8 +1831,8 @@ subroutine ocean_model_finalize(gcomp, rc)
   if (ChkErr(rc,__LINE__,u_FILE_u)) return
   Time = esmf2fms_time(currTime)
 
-  ! Do not write a restart unless mode is nems
-  if (restart_mode == 'nems') then
+  ! Do not write a restart unless mode is no_alarms
+  if (restart_mode == 'no_alarms') then
      write_restart = .true.
   else
      write_restart = .false.
