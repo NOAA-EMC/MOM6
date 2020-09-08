@@ -72,7 +72,7 @@ use ESMF,  only: ESMF_TimePrint, ESMF_AlarmSet, ESMF_FieldGet, ESMF_Array
 use ESMF,  only: ESMF_ArrayCreate
 use ESMF,  only: ESMF_RC_FILE_OPEN, ESMF_RC_FILE_READ, ESMF_RC_FILE_WRITE
 use ESMF,  only: ESMF_VMBroadcast
-use ESMF,  only: ESMF_AlarmCreate, ESMF_ClockGetAlarmList, ESMF_AlarmList_Flag 
+use ESMF,  only: ESMF_AlarmCreate, ESMF_ClockGetAlarmList, ESMF_AlarmList_Flag
 use ESMF,  only: ESMF_AlarmGet, ESMF_AlarmIsCreated, ESMF_ALARMLIST_ALL, ESMF_AlarmIsEnabled
 use ESMF,  only: ESMF_STATEITEM_NOTFOUND, ESMF_FieldWrite
 use ESMF,  only: operator(==), operator(/=), operator(+), operator(-)
@@ -1590,7 +1590,7 @@ subroutine ModelAdvance(gcomp, rc)
        write(logunit,*) subname//' writing restart file ',trim(restartname)
      endif
    endif
-  end if ! end of restart_mode alarms
+  end if ! restart_mode
 
   !---------------
   ! Write diagnostics
