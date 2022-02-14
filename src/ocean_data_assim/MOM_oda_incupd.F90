@@ -26,7 +26,7 @@ use MOM_grid,            only : ocean_grid_type
 use MOM_io,              only : vardesc, var_desc
 use MOM_remapping,       only : remapping_cs, remapping_core_h, initialize_remapping
 use MOM_restart,         only : register_restart_field, register_restart_pair, MOM_restart_CS
-use MOM_restart,         only : restart_init, save_restart, query_initialized
+use MOM_restart,         only : restart_init, save_restart, query_initialized,restart_registry_lock
 use MOM_spatial_means,   only : global_i_mean
 use MOM_time_manager,    only : time_type
 use MOM_unit_scaling,    only : unit_scale_type
@@ -114,6 +114,7 @@ subroutine initialize_oda_incupd_fixed( G, GV, US, CS, restart_CS)
   ! initialize time counter
   CS%ncount = 0.0
   ! register ncount in restart
+ call restart_registry_lock(restart_CS, unlocked=.true.)
   call register_restart_field(CS%ncount, "oda_incupd_ncount", .false., restart_CS,&
                               "Number of inc. update already done", "N/A")
 
