@@ -114,7 +114,7 @@ subroutine initialize_oda_incupd_fixed( G, GV, US, CS, restart_CS)
   ! initialize time counter
   CS%ncount = 0.0
   ! register ncount in restart
- call restart_registry_lock(restart_CS, unlocked=.true.)
+  call restart_registry_lock(restart_CS, unlocked=.true.)
   call register_restart_field(CS%ncount, "oda_incupd_ncount", .false., restart_CS,&
                               "Number of inc. update already done", "N/A")
 
