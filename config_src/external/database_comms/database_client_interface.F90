@@ -310,7 +310,7 @@ module database_client_interface
 
   !> Unpack a 32-bit real 1d tensor from the database
   function unpack_tensor_float_1d(self, name, data, dims) result(code)
-    real(kind=real32), dimension(:), intent(  out) :: data !< Data to be received
+    real(kind=real32), dimension(:), intent(inout) :: data !< Data to be received
     class(dbclient_type),            intent(in) :: self !< Fortran communication client
     character(len=*),                intent(in) :: name !< The unique name used to store in the database
     integer, dimension(:),           intent(in) :: dims !< The length of each dimension
@@ -321,7 +321,7 @@ module database_client_interface
 
   !> Unpack a 32-bit real 2d tensor from the database
   function unpack_tensor_float_2d(self, name, data, dims) result(code)
-    real(kind=real32), dimension(:,:), intent(  out) :: data !< Data to be received
+    real(kind=real32), dimension(:,:), intent(inout) :: data !< Data to be received
     class(dbclient_type),              intent(in) :: self !< Fortran communication client
     character(len=*),                  intent(in) :: name !< The unique name used to store in the database
     integer, dimension(:),             intent(in) :: dims !< The length of each dimension
@@ -332,7 +332,7 @@ module database_client_interface
 
   !> Unpack a 32-bit real 3d tensor from the database
   function unpack_tensor_float_3d(self, name, data, dims) result(code)
-    real(kind=real32), dimension(:,:,:), intent(  out) :: data !< Data to be received
+    real(kind=real32), dimension(:,:,:), intent(inout) :: data !< Data to be received
     class(dbclient_type),                intent(in) :: self !< Fortran communication client
     character(len=*),                    intent(in) :: name !< The unique name used to store in the database
     integer, dimension(:),               intent(in) :: dims !< The length of each dimension
@@ -343,7 +343,7 @@ module database_client_interface
 
   !> Unpack a 32-bit real 4d tensor from the database
   function unpack_tensor_float_4d(self, name, data, dims) result(code)
-    real(kind=real32), dimension(:,:,:,:), intent(  out) :: data !< Data to be received
+    real(kind=real32), dimension(:,:,:,:), intent(inout) :: data !< Data to be received
     class(dbclient_type),                intent(in) :: self !< Fortran communication client
     character(len=*),                    intent(in) :: name !< The unique name used to store in the database
     integer, dimension(:),               intent(in) :: dims !< The length of each dimension
@@ -354,7 +354,7 @@ module database_client_interface
 
   !> Unpack a 64-bit real 1d tensor from the database
   function unpack_tensor_double_1d(self, name, data, dims) result(code)
-    real(kind=real64), dimension(:), intent(  out) :: data !< Data to be received
+    real(kind=real64), dimension(:), intent(inout) :: data !< Data to be received
     class(dbclient_type),            intent(in) :: self !< Fortran communication client
     character(len=*),                intent(in) :: name !< The unique name used to store in the database
     integer, dimension(:),           intent(in) :: dims !< The length of each dimension
@@ -365,7 +365,7 @@ module database_client_interface
 
   !> Unpack a 64-bit real 2d tensor from the database
   function unpack_tensor_double_2d(self, name, data, dims) result(code)
-    real(kind=real64), dimension(:,:), intent(  out) :: data !< Data to be received
+    real(kind=real64), dimension(:,:), intent(inout) :: data !< Data to be received
     class(dbclient_type),              intent(in) :: self !< Fortran communication client
     character(len=*),                  intent(in) :: name !< The unique name used to store in the database
     integer, dimension(:),             intent(in) :: dims !< The length of each dimension
@@ -376,7 +376,7 @@ module database_client_interface
 
   !> Unpack a 64-bit real 3d tensor from the database
   function unpack_tensor_double_3d(self, name, data, dims) result(code)
-    real(kind=real64), dimension(:,:,:), intent(  out) :: data !< Data to be received
+    real(kind=real64), dimension(:,:,:), intent(inout) :: data !< Data to be received
     class(dbclient_type),                intent(in) :: self !< Fortran communication client
     character(len=*),                    intent(in) :: name !< The unique name used to store in the database
     integer, dimension(:),               intent(in) :: dims !< The length of each dimension
@@ -387,7 +387,7 @@ module database_client_interface
 
   !> Unpack a 64-bit real 4d tensor from the database
   function unpack_tensor_double_4d(self, name, data, dims) result(code)
-    real(kind=real64), dimension(:,:,:,:), intent(  out) :: data !< Data to be received
+    real(kind=real64), dimension(:,:,:,:), intent(inout) :: data !< Data to be received
     class(dbclient_type),                intent(in) :: self !< Fortran communication client
     character(len=*),                    intent(in) :: name !< The unique name used to store in the database
     integer, dimension(:),               intent(in) :: dims !< The length of each dimension
@@ -398,7 +398,7 @@ module database_client_interface
 
   !> Unpack a 32-bit integer 1d tensor from the database
   function unpack_tensor_int32_1d(self, name, data, dims) result(code)
-    integer(kind=int32), dimension(:), intent(  out) :: data !< Data to be received
+    integer(kind=int32), dimension(:), intent(inout) :: data !< Data to be received
     class(dbclient_type),            intent(in) :: self !< Fortran communication client
     character(len=*),                intent(in) :: name !< The unique name used to store in the database
     integer, dimension(:),           intent(in) :: dims !< The length of each dimension
@@ -409,7 +409,7 @@ module database_client_interface
 
   !> Unpack a 32-bit integer 2d tensor from the database
   function unpack_tensor_int32_2d(self, name, data, dims) result(code)
-    integer(kind=int32), dimension(:,:), intent(  out) :: data !< Data to be received
+    integer(kind=int32), dimension(:,:), intent(inout) :: data !< Data to be received
     class(dbclient_type),              intent(in) :: self !< Fortran communication client
     character(len=*),                  intent(in) :: name !< The unique name used to store in the database
     integer, dimension(:),             intent(in) :: dims !< The length of each dimension
@@ -420,7 +420,7 @@ module database_client_interface
 
   !> Unpack a 32-bit integer 3d tensor from the database
   function unpack_tensor_int32_3d(self, name, data, dims) result(code)
-    integer(kind=int32), dimension(:,:,:), intent(  out) :: data !< Data to be received
+    integer(kind=int32), dimension(:,:,:), intent(inout) :: data !< Data to be received
     class(dbclient_type),                intent(in) :: self !< Fortran communication client
     character(len=*),                    intent(in) :: name !< The unique name used to store in the database
     integer, dimension(:),               intent(in) :: dims !< The length of each dimension
@@ -431,7 +431,7 @@ module database_client_interface
 
   !> Unpack a 32-bit integer 4d tensor from the database
   function unpack_tensor_int32_4d(self, name, data, dims) result(code)
-    integer(kind=int32), dimension(:,:,:,:), intent(  out) :: data !< Data to be received
+    integer(kind=int32), dimension(:,:,:,:), intent(inout) :: data !< Data to be received
     class(dbclient_type),                intent(in) :: self !< Fortran communication client
     character(len=*),                    intent(in) :: name !< The unique name used to store in the database
     integer, dimension(:),               intent(in) :: dims !< The length of each dimension
@@ -475,7 +475,7 @@ module database_client_interface
   function get_model(self, name, model) result(code)
     class(dbclient_type),               intent(in  ) :: self  !< An initialized communication client
     character(len=*),                 intent(in  ) :: name  !< The name associated with the model
-    character(len=*),                 intent( out) :: model !< The model as a continuous buffer
+    character(len=*),                 intent(inout) :: model !< The model as a continuous buffer
     integer                        :: code
 
     code = -1
@@ -617,7 +617,7 @@ module database_client_interface
   function get_script(self, name, script) result(code)
     class(dbclient_type), intent(in  ) :: self   !< An initialized communication client
     character(len=*),   intent(in  ) :: name   !< The name to use to place the script
-    character(len=*),   intent( out) :: script !< The script as a continuous buffer
+    character(len=*),   intent(inout) :: script !< The script as a continuous buffer
     integer          :: code
 
     code = -1

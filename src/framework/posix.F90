@@ -302,7 +302,7 @@ end function mkdir
 function stat(path, buf) result(rc)
   character(len=*), intent(in) :: path
     !< Pathname of file to be inspected
-  type(stat_buf), intent(out) :: buf
+  type(stat_buf), intent(inout) :: buf
     !< Buffer containing information about the file if it exists
     ! NOTE: Currently the contents of buf are not readable, but we could move
     ! the contents into a readable Fortran type.

@@ -13,7 +13,7 @@ subroutine extract_coupler_values(BC_struc, BC_index, BC_element, array_out, ilb
                                   is, ie, js, je, conversion)
   integer,                   intent(in)  :: ilb !< Lower bounds
   integer,                   intent(in)  :: jlb !< Lower bounds
-  real, dimension(ilb:,jlb:),intent(out) :: array_out !< The array being filled with the input values
+  real, dimension(ilb:,jlb:),intent(inout) :: array_out !< The array being filled with the input values
   type(coupler_2d_bc_type),  intent(in)  :: BC_struc !< The type from which the data is being extracted
   integer,                   intent(in)  :: BC_index !< The boundary condition number being extracted
   integer,                   intent(in)  :: BC_element !< The element of the boundary condition being extracted

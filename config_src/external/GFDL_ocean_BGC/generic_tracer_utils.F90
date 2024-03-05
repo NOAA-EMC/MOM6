@@ -127,16 +127,16 @@ contains
 
   subroutine g_tracer_get_common(isc,iec,jsc,jec,isd,ied,jsd,jed,nk,ntau,&
        axes,grid_tmask,grid_mask_coast,grid_kmt,init_time,diag_CS)
-    integer,                        intent(out) :: isc !< Computation start index in i direction
-    integer,                        intent(out) :: iec !< Computation end index in i direction
-    integer,                        intent(out) :: jsc !< Computation start index in j direction
-    integer,                        intent(out) :: jec !< Computation end index in j direction
-    integer,                        intent(out) :: isd !< Data start index in i direction
-    integer,                        intent(out) :: ied !< Data end index in i direction
-    integer,                        intent(out) :: jsd !< Data start index in j direction
-    integer,                        intent(out) :: jed !< Data end index in j direction
-    integer,                        intent(out) :: nk  !< Number of levels in k direction
-    integer,                        intent(out) :: ntau !< Unknown
+    integer,                        intent(inout) :: isc !< Computation start index in i direction
+    integer,                        intent(inout) :: iec !< Computation end index in i direction
+    integer,                        intent(inout) :: jsc !< Computation start index in j direction
+    integer,                        intent(inout) :: jec !< Computation end index in j direction
+    integer,                        intent(inout) :: isd !< Data start index in i direction
+    integer,                        intent(inout) :: ied !< Data end index in i direction
+    integer,                        intent(inout) :: jsd !< Data start index in j direction
+    integer,                        intent(inout) :: jed !< Data end index in j direction
+    integer,                        intent(inout) :: nk  !< Number of levels in k direction
+    integer,                        intent(inout) :: ntau !< Unknown
     integer, optional,              intent(out) :: axes(3) !< Unknown
     type(time_type), optional,      intent(out) :: init_time !< Unknown
     real, optional, dimension(:,:,:),   pointer :: grid_tmask !< Unknown
@@ -176,7 +176,7 @@ contains
     type(g_tracer_type),      pointer    :: g_tracer_list !< Unknown
     integer,                  intent(in) :: isd !< Unknown
     integer,                  intent(in) :: jsd !< Unknown
-    real, dimension(isd:,jsd:,:,:), intent(out):: array !< Unknown
+    real, dimension(isd:,jsd:,:,:), intent(inout):: array !< Unknown
   end subroutine g_tracer_get_4D_val
 
   !> Unknown
@@ -188,7 +188,7 @@ contains
     integer,                  intent(in) :: jsd !< Unknown
     integer, optional,        intent(in) :: ntau !< Unknown
     logical, optional,        intent(in) :: positive !< Unknown
-    real, dimension(isd:,jsd:,:), intent(out):: array !< Unknown
+    real, dimension(isd:,jsd:,:), intent(inout):: array !< Unknown
     character(len=fm_string_len), parameter :: sub_name = 'g_tracer_get_3D_val'
   end subroutine g_tracer_get_3D_val
 
@@ -199,7 +199,7 @@ contains
     type(g_tracer_type),      pointer    :: g_tracer_list !< Unknown
     integer,                  intent(in) :: isd !< Unknown
     integer,                  intent(in) :: jsd !< Unknown
-    real, dimension(isd:,jsd:), intent(out):: array !< Unknown
+    real, dimension(isd:,jsd:), intent(inout):: array !< Unknown
   end subroutine g_tracer_get_2D_val
 
   !> Unknown
@@ -207,7 +207,7 @@ contains
     character(len=*),         intent(in) :: name !< Unknown
     character(len=*),         intent(in) :: member !< Unknown
     type(g_tracer_type),      pointer    :: g_tracer_list !< Unknown
-    real,                     intent(out):: value !< Unknown
+    real,                     intent(inout):: value !< Unknown
   end subroutine g_tracer_get_real
 
   !> Unknown
@@ -215,7 +215,7 @@ contains
     character(len=*),         intent(in) :: name !< Unknown
     character(len=*),         intent(in) :: member !< Unknown
     type(g_tracer_type),      pointer    :: g_tracer_list !< Unknown
-    character(len=fm_string_len), intent(out) :: string !< Unknown
+    character(len=fm_string_len), intent(inout) :: string !< Unknown
   end subroutine g_tracer_get_string
 
   !> Unknown
@@ -267,13 +267,13 @@ contains
   !> Unknown
   subroutine g_tracer_get_name(g_tracer,string)
     type(g_tracer_type),    pointer    :: g_tracer !< Unknown
-    character(len=*),        intent(out) :: string !< Unknown
+    character(len=*),        intent(inout) :: string !< Unknown
   end subroutine g_tracer_get_name
 
   !> Unknown
   subroutine g_tracer_get_alias(g_tracer,string)
     type(g_tracer_type), pointer  :: g_tracer !< Unknown
-    character(len=*), intent(out) :: string !< Unknown
+    character(len=*), intent(inout) :: string !< Unknown
   end subroutine g_tracer_get_alias
 
   !> Is the tracer prognostic?
@@ -292,7 +292,7 @@ contains
   subroutine g_tracer_get_obc_segment_props(g_tracer_list, name, obc_has, src_file, src_var_name,lfac_in,lfac_out)
     type(g_tracer_type), pointer         :: g_tracer_list !< pointer to the head of the generic tracer list
     character(len=*),         intent(in) :: name          !< tracer name
-    logical,                  intent(out):: obc_has       !< .true. if This tracer has OBC
+    logical,                  intent(inout):: obc_has       !< .true. if This tracer has OBC
     real,            optional,intent(out):: lfac_in       !< OBC reservoir inverse lengthscale factor
     real,            optional,intent(out):: lfac_out      !< OBC reservoir inverse lengthscale factor
     character(len=*),optional,intent(out):: src_file      !< OBC source file
