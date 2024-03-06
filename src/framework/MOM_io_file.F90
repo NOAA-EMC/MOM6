@@ -1696,9 +1696,9 @@ subroutine read_field_chksum_nc(handle, field, chksum, valid_chksum)
     !< File where field is stored
   type(MOM_field), intent(in) :: field
     !< The field whose checksum attribute is to be read
-  integer(kind=int64), intent(out) :: chksum
+  integer(kind=int64), intent(out) :: chksum = -1
     !< The checksum for the field.
-  logical, intent(out) :: valid_chksum
+  logical, intent(out) :: valid_chksum = .false.
     !< If true, chksum has been successfully read
 
   call MOM_error(FATAL, 'read_field_chksum over netCDF is not yet implemented.')
