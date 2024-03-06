@@ -555,6 +555,7 @@ integer function register_MOM_IS_static_field(module_name, field_name, axes, &
   endif
 
   register_static_field = primary_id
+  register_MOM_IS_static_field = primary_id
 
 end function register_MOM_IS_static_field
 

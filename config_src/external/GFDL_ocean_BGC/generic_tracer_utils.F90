@@ -280,6 +280,7 @@ contains
   function g_tracer_is_prog(g_tracer)
     logical :: g_tracer_is_prog
     type(g_tracer_type), pointer :: g_tracer !< Pointer to tracer node
+    g_tracer_is_prog = -1
   end function g_tracer_is_prog
 
   !> get the next tracer in the list
