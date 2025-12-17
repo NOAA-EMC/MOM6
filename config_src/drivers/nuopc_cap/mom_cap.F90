@@ -31,11 +31,13 @@ use MOM_cap_methods,          only: ChkErr
 use MOM_ensemble_manager,     only: ensemble_manager_init
 use MOM_coms,                 only: sum_across_PEs
 
+! stub routines for CESMCOUPLED
+use mom_cap_outputlog,       only: outputlog_init, outputlog_run, outputlog_restart
 #ifdef CESMCOUPLED
 use shr_log_mod,             only: shr_log_setLogUnit
 use nuopc_shr_methods,       only: get_component_instance
 #endif
-use time_utils_mod,           only: esmf2fms_time
+use time_utils_mod,          only: esmf2fms_time
 
 use, intrinsic :: iso_fortran_env, only: output_unit
 
@@ -92,7 +94,7 @@ use NUOPC_Model, only: model_label_Finalize       => label_Finalize
 use NUOPC_Model, only: SetVM
 
 #ifndef CESMCOUPLED
-  use shr_is_restart_fh_mod, only : init_is_restart_fh, is_restart_fh, is_restart_fh_type
+use shr_is_restart_fh_mod, only : init_is_restart_fh, is_restart_fh, is_restart_fh_type
 #endif
 use mom_ufs_trace_wrapper_mod, only: ufs_trace_init_wrapper, ufs_trace_wrapper
 
@@ -532,7 +534,7 @@ subroutine InitializeAdvertise(gcomp, importState, exportState, clock, rc)
 
   rpointer_filename = 'rpointer.ocn'//trim(inst_suffix)
   if (pointer_date) then
-    write(timestamp,'(".",i4.4,"-",i2.2,"-",i2.2,"-",i5.5)'),year,month,day,hour*3600+minute*60+second
+    write(timestamp,'(".",i4.4,"-",i2.2,"-",i2.2,"-",i5.5)')year,month,day,hour*3600+minute*60+second
     inquire(file=trim(rpointer_filename//timestamp), exist=found)
     ! for backward compatibility
     if (found) then
@@ -1808,7 +1810,9 @@ subroutine ModelAdvance(gcomp, rc)
   call ESMF_LogWrite(trim(msgString), ESMF_LOGMSG_INFO)
 
   call ESMF_TimeGet(currTime,          timestring=import_timestr, rc=rc)
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
   call ESMF_TimeGet(currTime+timestep, timestring=export_timestr, rc=rc)
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   Time_step_coupled = esmf2fms_time(timeStep)
   Time = esmf2fms_time(currTime)
@@ -1911,7 +1915,7 @@ subroutine ModelAdvance(gcomp, rc)
       call state_diagnose(exportState,subname//':ES ',rc=rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
     endif
-  endif
+  endif ! do_advance
 
   !---------------
   ! Get the stop alarm
@@ -1939,12 +1943,12 @@ subroutine ModelAdvance(gcomp, rc)
     write_restart_eor = .false.
     if (restart_eor) then
       if (ESMF_AlarmIsRinging(stop_alarm, rc=rc)) then
-         if (ChkErr(rc,__LINE__,u_FILE_u)) return
-         write_restart_eor = .true.
-         ! turn off the alarm
-         call ESMF_AlarmRingerOff(stop_alarm, rc=rc )
-         if (ChkErr(rc,__LINE__,u_FILE_u)) return
-       end if
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
+        write_restart_eor = .true.
+        ! turn off the alarm
+        call ESMF_AlarmRingerOff(stop_alarm, rc=rc )
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      end if
     end if
 
 #ifndef CESMCOUPLED
@@ -1967,7 +1971,7 @@ subroutine ModelAdvance(gcomp, rc)
         call ESMF_VMGet(vm, localPet=localPet, rc=rc)
         if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-        write(timestamp,'(".",i4.4,"-",i2.2,"-",i2.2,"-",i5.5)'),year,month,day,hour*3600+minute*60+seconds
+        write(timestamp,'(".",i4.4,"-",i2.2,"-",i2.2,"-",i5.5)')year,month,day,hour*3600+minute*60+seconds
 
         rpointer_filename = 'rpointer.ocn'//trim(inst_suffix)
         if (pointer_date) then
@@ -2015,8 +2019,10 @@ subroutine ModelAdvance(gcomp, rc)
 
         ! write restart file(s)
         call ocean_model_restart(ocean_state, restartname=restartname, &
-                                stoch_restartname=stoch_restartname)
+                                stoch_restartname=stoch_restartname, num_rest_files=num_rest_files)
 
+        call outputlog_restart(clock, num_rest_files, rc=rc)
+        if (ChkErr(rc,__LINE__,u_FILE_u)) return
       endif
 
       if (is_root_pe()) then
@@ -2024,6 +2030,9 @@ subroutine ModelAdvance(gcomp, rc)
       endif
     endif
   endif ! restart_mode
+
+  call outputlog_run(clock, rc=rc)
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   !---------------
   ! Write diagnostics
@@ -2224,6 +2233,8 @@ subroutine ModelSetRunClock(gcomp, rc)
     call ESMF_TimeGet(dstoptime, timestring=timestr, rc=rc)
     call ESMF_LogWrite("Stop Alarm will ring at : "//trim(timestr), ESMF_LOGMSG_INFO)
 
+    call outputlog_init(gcomp, mclock, rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
     first_time = .false.
 
   endif
@@ -2300,6 +2311,12 @@ subroutine ocean_model_finalize(gcomp, rc)
 
   call io_infra_end()
   call MOM_infra_end()
+
+  ! need to call twice to force logging of last output file
+  call outputlog_run(clock, rc=rc)
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
+  call outputlog_run(clock, .true., rc=rc)
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   if(write_runtimelog .and. is_root_pe()) write(stdout,*) 'In ',trim(subname),' time ', MPI_Wtime()-timefs
 
