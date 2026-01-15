@@ -93,6 +93,7 @@ use NUOPC_Model, only: model_label_SetRunClock    => label_SetRunClock
 use NUOPC_Model, only: model_label_Finalize       => label_Finalize
 use NUOPC_Model, only: SetVM
 
+use mom_inline_mod, only : mom_inline_init, mom_inline_run
 #ifndef CESMCOUPLED
 use shr_is_restart_fh_mod, only : init_is_restart_fh, is_restart_fh, is_restart_fh_type
 #endif
@@ -145,6 +146,7 @@ logical              :: use_coldstart = .true.
 logical              :: use_mommesh = .true.
 logical              :: set_missing_stks_to_zero = .false.
 logical              :: restart_eor = .false.
+logical              :: use_cdeps_inline = .false.
 character(len=128)   :: scalar_field_name = ''
 integer              :: scalar_field_count = 0
 integer              :: scalar_field_idx_grid_nx = 0
@@ -411,6 +413,14 @@ subroutine InitializeP0(gcomp, importState, exportState, clock, rc)
   else
     geomtype = ESMF_GEOMTYPE_GRID
   endif
+
+  use_cdeps_inline = .false.
+  call NUOPC_CompAttributeGet(gcomp, name="use_cdeps_inline", value=value, &
+       isPresent=isPresent, isSet=isSet, rc=rc)
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
+  if (isPresent .and. isSet) use_cdeps_inline=(trim(value)=="true")
+  write(logmsg,*) use_cdeps_inline
+  call ESMF_LogWrite('MOM_cap:use_cdeps_inline = '//trim(logmsg), ESMF_LOGMSG_INFO)
 
   ! Read end of run restart config option
   call NUOPC_CompAttributeGet(gcomp, name="write_restart_at_endofrun", value=value, &
@@ -1609,6 +1619,11 @@ subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
   !---------------------------------
   call mom_set_geomtype(geomtype)
 
+  if (use_cdeps_inline) then
+     call mom_inline_init(gcomp, clock, eMesh, localPet, rc=rc)
+     if (ChkErr(rc,__LINE__,u_FILE_u)) return
+  end if
+
   !---------------------------------
   ! write out diagnostics
   !---------------------------------
@@ -1894,6 +1909,11 @@ subroutine ModelAdvance(gcomp, rc)
     call mom_import(ocean_public, ocean_grid, importState, ice_ocean_boundary,  &
                     set_missing_stks_to_zero, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+    if (use_cdeps_inline) then
+      call mom_inline_run(clock, ocean_public, ocean_grid, ice_ocean_boundary, dbug, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    end if
 
     !---------------
     ! Update MOM6
