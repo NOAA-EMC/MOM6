@@ -230,7 +230,7 @@ contains
 !!   This subroutine initializes both the ocean state and the ocean surface type.
 !! Because of the way that indicies and domains are handled, Ocean_sfc must have
 !! been used in a previous call to initialize_ocean_type.
-subroutine ocean_model_init(Ocean_sfc, OS, Time_init, Time_in, gas_fields_ocn, input_restart_file, inst_index)
+subroutine ocean_model_init(Ocean_sfc, OS, Time_init, Time_in, ocean_surface_stagger, gas_fields_ocn, input_restart_file, inst_index)
   type(ocean_public_type), target, &
                        intent(inout) :: Ocean_sfc !< A structure containing various publicly
                                 !! visible ocean surface properties after initialization,
@@ -240,6 +240,7 @@ subroutine ocean_model_init(Ocean_sfc, OS, Time_init, Time_in, gas_fields_ocn, i
                                 !! contain all information about the ocean's interior state.
   type(time_type),     intent(in)    :: Time_init !< The start time for the coupled model's calendar
   type(time_type),     intent(in)    :: Time_in   !< The time at which to initialize the ocean model.
+  character(len=1),    intent(out)   :: ocean_surface_stagger !< location of u,v velocities in ocean_public
   type(coupler_1d_bc_type), &
              optional, intent(in)    :: gas_fields_ocn !< If present, this type describes the
                                               !! ocean and surface-ice fields that will participate
@@ -377,6 +378,7 @@ subroutine ocean_model_init(Ocean_sfc, OS, Time_init, Time_in, gas_fields_ocn, i
   else
     use_melt_pot=.false.
   endif
+  ocean_surface_stagger = uppercase(stagger(1:1))
 
   call get_param(param_file, mdl, "USE_WAVES", OS%Use_Waves, &
        "If true, enables surface wave modules.", default=.false.)
@@ -433,7 +435,7 @@ subroutine ocean_model_init(Ocean_sfc, OS, Time_init, Time_in, gas_fields_ocn, i
   endif
 
   call extract_surface_state(OS%MOM_CSp, OS%sfc_state)
-! get number of processors and PE list for stocasthci physics initialization
+! get number of processors and PE list for stochastic physics initialization
   call get_param(param_file, mdl, "DO_SPPT", OS%do_sppt, &
                  "If true, then stochastically perturb the thermodynamic "//&
                  "tendencies of T,S, and h.  Amplitude and correlations are "//&
