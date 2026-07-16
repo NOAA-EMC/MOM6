@@ -114,7 +114,7 @@ type(outputlog_type) :: olog(n_freq)
 
 integer            :: toffset
 logical            :: debug
-logical            :: existflag
+logical            :: existflag, log_to_output
 character(len=256) :: restartdir
 character(len=256) :: outputdir
 character(len=2)   :: output_fh
@@ -147,6 +147,12 @@ subroutine outputlog_init(gcomp, mclock, rc)
   rc = ESMF_SUCCESS
   call ESMF_GridCompGet(gcomp, vm=vm, rc=rc)
   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+  log_to_output = .false.
+  call NUOPC_CompAttributeGet(gcomp, name="mom6_write_log_to_output_dir", value=value, &
+       isPresent=isPresent, isSet=isSet, rc=rc)
+  if (ChkErr(rc,__LINE__,u_FILE_u)) return
+  if (isPresent .and. isSet) log_to_output=(trim(value)=="true")
 
   call NUOPC_CompAttributeGet(gcomp, name="mom6_restart_dir", value=value, &
        isPresent=isPresent, isSet=isSet, rc=rc)
@@ -276,6 +282,7 @@ subroutine outputlog_run(mclock, atStopTime, rc)
   character(len=16)  :: timestr
   character(len=256) :: fname
   character(len=256) :: subname='MOM_cap:(outputlog_run)'
+  character(len=256), allocatable :: logdir
   !----------------------------------------------------------------------------
 
   rc = ESMF_SUCCESS
@@ -295,6 +302,8 @@ subroutine outputlog_run(mclock, atStopTime, rc)
   filecomplete = .false.
   fsize(1) = nf90_fill_int
   nlen(1)  = nf90_fill_int
+
+  if (log_to_output) logdir=outputdir
 
   do n = 1,n_freq
     write(chour,'(I2.2,A)')freq(n),'h'
@@ -348,7 +357,7 @@ subroutine outputlog_run(mclock, atStopTime, rc)
           olog(n)%time_lastrestart = lastrestart
           if (is_root_pe()) then
             call log_restart_fh(currTime-olog(n)%fhoffset, startTime, 'mom6.'//chour, prefixtime=.true., &
-                 lastrestart=olog(n)%time_lastrestart, lastoutput=olog(n)%filename, rc=rc)
+                 lastrestart=olog(n)%time_lastrestart, lastoutput=olog(n)%filename, output_dir=logdir, rc=rc)
             if (ChkErr(rc,__LINE__,u_FILE_u)) return
           endif
         endif
@@ -375,7 +384,7 @@ subroutine outputlog_run(mclock, atStopTime, rc)
           olog(n)%time_lastrestart = lastrestart
           if (is_root_pe()) then
             call log_restart_fh(prevring, startTime, 'mom6.lstop.'//chour, prefixtime=.true., &
-                 lastrestart=olog(n)%time_lastrestart, lastoutput=olog(n)%filename, rc=rc)
+                 lastrestart=olog(n)%time_lastrestart, lastoutput=olog(n)%filename, output_dir=logdir, rc=rc)
             if (ChkErr(rc,__LINE__,u_FILE_u)) return
           endif
         endif
@@ -407,6 +416,7 @@ subroutine outputlog_restart(mclock, num_rest_files, rc)
   logical, allocatable :: allDone(:)
   character(len=8)     :: suffix
   character(len=256)   :: subname='MOM_cap:(outputlog_restart)'
+  character(len=256), allocatable :: logdir
   !----------------------------------------------------------------------------
 
   rc = ESMF_SUCCESS
@@ -424,6 +434,8 @@ subroutine outputlog_restart(mclock, num_rest_files, rc)
 
   allocate(allDone(1:num_rest_files))
   allDone = .false.
+
+  if (log_to_output) logdir=outputdir
 
   do n = 1,num_rest_files
     if (n == 1) then
@@ -462,7 +474,7 @@ subroutine outputlog_restart(mclock, num_rest_files, rc)
   if (all(allDone) .eqv. .true.) then
     lastrestart = nextTime
     if (is_root_pe()) then
-      call log_restart_fh(nextTime, startTime, 'mom6.res', prefixtime=.true., rc=rc)
+      call log_restart_fh(nextTime, startTime, 'mom6.res', prefixtime=.true., output_dir=logdir, rc=rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
     endif
   endif
