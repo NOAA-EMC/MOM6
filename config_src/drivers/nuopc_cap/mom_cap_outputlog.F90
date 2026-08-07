@@ -208,7 +208,7 @@ contains
     call ESMF_TimeGet(mcurrTime, yy=year, mm=month, dd=day, h=hour, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     if (mod(hour,6) /= 0) then
-      toffset = hour - 6
+      toffset = 6 - (mod(hour,6))
     else
       toffset = 0
     end if
