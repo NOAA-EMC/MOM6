@@ -115,13 +115,13 @@ type ocean_internalstate_type
   type(ocean_public_type),       pointer :: ocean_public_type_ptr
   type(ocean_state_type),        pointer :: ocean_state_type_ptr
   type(ice_ocean_boundary_type), pointer :: ice_ocean_boundary_type_ptr
-end type
+end type ocean_internalstate_type
 
 !>  Wrapper-derived type required to associate an internal state instance
 !! with the ESMF/NUOPC component
 type ocean_internalstate_wrapper
   type(ocean_internalstate_type), pointer :: ptr
-end type
+end type ocean_internalstate_wrapper
 
 !> Contains field information
 type fld_list_type
@@ -2102,6 +2102,8 @@ subroutine ModelSetRunClock(gcomp, rc)
   type(ESMF_Time)          :: mstoptime, dstoptime
   type(ESMF_Time)          :: mstoptime_prev ! model stop time before it is updated by this routine
   type(ESMF_TimeInterval)  :: mtimestep, dtimestep
+  type(ocean_internalstate_wrapper) :: ocean_internalstate
+  type(ocean_grid_type), pointer    :: ocean_grid => null()
   character(len=128)       :: mtimestring, dtimestring
   character(len=256)       :: cvalue
   character(len=256)       :: restart_option ! Restart option units
@@ -2269,7 +2271,11 @@ subroutine ModelSetRunClock(gcomp, rc)
       call ESMF_LogWrite("Stop Alarm will ring at : "//trim(timestr), ESMF_LOGMSG_INFO)
     endif
 
-    call outputlog_init(gcomp, mclock, rc)
+    ! obtain the ocean_internalstate and pass the ocean_public_type
+    call ESMF_GridCompGetInternalState(gcomp, ocean_internalstate, rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    call get_ocean_grid(ocean_internalstate%ptr%ocean_state_type_ptr, ocean_grid)
+    call outputlog_init(gcomp, mclock, ocean_grid, rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     first_time = .false.
 
